@@ -1,0 +1,209 @@
+import React, { useState, useEffect } from 'react';
+import { Video, MessageSquare } from 'lucide-react';
+
+const ASLVideoConference = () => {
+  const [roomName, setRoomName] = useState('');
+  const [userName, setUserName] = useState('');
+  const [isInCall, setIsInCall] = useState(false);
+  const [captions, setCaptions] = useState([]);
+  const [aslEnabled, setAslEnabled] = useState(true);
+
+  // Simulated ASL backend connection - replace with actual WebSocket/API calls
+  useEffect(() => {
+    if (!isInCall || !aslEnabled) return;
+
+    // Placeholder for ASL translation backend
+    const simulateASLTranslation = setInterval(() => {
+      const examplePhrases = [
+        "Hello everyone",
+        "How are you?",
+        "Nice to meet you",
+        "Thank you",
+        "Good morning"
+      ];
+      
+      // This simulates receiving translations from your Python backend
+      const randomPhrase = examplePhrases[Math.floor(Math.random() * examplePhrases.length)];
+      const newCaption = {
+        id: Date.now(),
+        text: randomPhrase,
+        timestamp: new Date().toLocaleTimeString()
+      };
+      
+      setCaptions(prev => [...prev.slice(-4), newCaption]);
+    }, 8000);
+
+    return () => clearInterval(simulateASLTranslation);
+  }, [isInCall, aslEnabled]);
+
+  const startCall = () => {
+    if (!roomName || !userName) return;
+    setIsInCall(true);
+  };
+
+  const endCall = () => {
+    setIsInCall(false);
+    setCaptions([]);
+  };
+
+  if (isInCall) {
+    // Create Jitsi URL with parameters
+    const jitsiUrl = `https://meet.jit.si/${encodeURIComponent(roomName)}#userInfo.displayName="${encodeURIComponent(userName)}"&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
+
+    return (
+      <div className="h-screen w-screen bg-gray-900 flex flex-col">
+        {/* Video Container */}
+        <div className="flex-1 relative">
+          <iframe
+            src={jitsiUrl}
+            allow="camera; microphone; fullscreen; display-capture; autoplay"
+            className="w-full h-full border-0"
+            title="Jitsi Video Conference"
+          />
+          
+          {/* ASL Captions Overlay */}
+          {aslEnabled && captions.length > 0 && (
+            <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 w-11/12 max-w-3xl pointer-events-none">
+              <div className="bg-black bg-opacity-90 rounded-lg p-4 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageSquare className="w-4 h-4 text-blue-400" />
+                  <span className="text-xs text-blue-400 font-semibold">ASL LIVE TRANSLATION</span>
+                </div>
+                {captions.map((caption) => (
+                  <div key={caption.id} className="text-white text-lg font-medium mb-1 animate-fadeIn">
+                    {caption.text}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Control Bar */}
+        <div className="bg-gray-800 border-t border-gray-700 p-4">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-2 bg-gray-700 rounded-lg">
+                <div className={`w-2 h-2 rounded-full ${aslEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
+                <span className="text-sm text-white">ASL Translation</span>
+              </div>
+              <button
+                onClick={() => setAslEnabled(!aslEnabled)}
+                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+              >
+                {aslEnabled ? 'Disable' : 'Enable'}
+              </button>
+            </div>
+            
+            <button
+              onClick={endCall}
+              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+            >
+              Leave Call
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4">
+      <div className="max-w-md w-full">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Video className="w-12 h-12 text-blue-400" />
+            <h1 className="text-4xl font-bold text-white">ASL Connect</h1>
+          </div>
+          <p className="text-blue-200">Video conferencing with real-time sign language translation</p>
+        </div>
+
+        {/* Join Form */}
+        <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white border-opacity-20">
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-blue-200 mb-2">
+                Your Name
+              </label>
+              <input
+                type="text"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Enter your name"
+                className="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-blue-200 mb-2">
+                Room Name
+              </label>
+              <input
+                type="text"
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                placeholder="Enter room name"
+                className="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <label className="flex items-center gap-3 text-white cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={aslEnabled}
+                  onChange={(e) => setAslEnabled(e.target.checked)}
+                  className="w-5 h-5 rounded"
+                />
+                <span className="text-sm">Enable ASL Translation</span>
+              </label>
+            </div>
+
+            <button
+              onClick={startCall}
+              disabled={!roomName || !userName}
+              className="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            >
+              Join Conference
+            </button>
+          </div>
+        </div>
+
+        {/* Info Section */}
+        <div className="mt-8 space-y-4">
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white bg-opacity-10 rounded-full backdrop-blur-sm">
+              <MessageSquare className="w-4 h-4 text-blue-300" />
+              <span className="text-sm text-blue-200">Powered by Jitsi & ASL AI</span>
+            </div>
+          </div>
+          
+          <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 border border-white border-opacity-20">
+            <p className="text-xs text-blue-200 text-center">
+              💡 <strong>Tip:</strong> You'll need to allow camera and microphone access when prompted by your browser
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default ASLVideoConference;

@@ -40,22 +40,28 @@ def extract_keypoints_from_video(video_path):
         # Run MediaPipe hand detection on the frame
         results = hands.process(rgb)
 
-        keypoints = []              # Will hold one frame's (x, y, z) coordinates
+        # Will hold one frame's (x, y, z) coordinates
+        keypoints = []              
 
         # If MediaPipe detected a hand
         if results.multi_hand_landmarks:
+            print("HAND DETECTED")
             hand = results.multi_hand_landmarks[0]   # Take the first detected hand
 
             # Extract all 21 landmarks (each has x, y, z)
             for lm in hand.landmark:
                 keypoints.extend([lm.x, lm.y, lm.z])
 
-        else:
-            # No hand detected → fill with zeros to keep the frame count consistent
-            keypoints = [0.0] * (21 * 3)
+            # Print only after all 21 landmarks are added
+            print("sample:", keypoints[:6])
 
-        # Add this frame's keypoints to the sequence list
-        sequence.append(keypoints)
+            ### >>> CHANGED: Only append frames with hand detected
+            sequence.append(keypoints)
+
+        else:
+            print("NO HAND")
+            ### >>> CHANGED: Skip frames with no hand
+            continue
 
     # Release video resource
     cap.release()
@@ -63,17 +69,22 @@ def extract_keypoints_from_video(video_path):
     # Convert Python list into a NumPy array
     sequence = np.array(sequence)
 
-    # If video is longer than MAX_FRAMES, cut
-    if len(sequence) > MAX_FRAMES:
+    ### >>> ADDED: Pad or crop to MAX_FRAMES
+    num_frames = sequence.shape[0]
+
+    if num_frames >= MAX_FRAMES:
+        # Too many frames → keep the first MAX_FRAMES
         sequence = sequence[:MAX_FRAMES]
 
     else:
-        # Pad with zeros if video has fewer frames than MAX_FRAMES
-        pad_len = MAX_FRAMES - len(sequence)
-        padding = np.zeros((pad_len, 21 * 3))
+        # Too few → pad the remaining frames with zeros
+        pad_len = MAX_FRAMES - num_frames
+        padding = np.zeros((pad_len, 63))  # 21 keypoints × 3 coords
         sequence = np.vstack([sequence, padding])
 
     return sequence
+
+
 
 def process_all_videos():
     # Ensure output directories exist
@@ -128,5 +139,7 @@ def process_all_videos():
 
     print("\n✅ Finished extracting all keypoints and label files!")
 
+
+# When this file is executed directly (not imported), run the pipeline
 if __name__ == "__main__":
     process_all_videos()

@@ -1,8 +1,9 @@
-mediapipe opencv-python
+mediapipe 
+opencv-python
 numpy
 pyvirtualcam
 torch
 torchvision
 torchaudio
 tqdm
-tensorflow==2.12.0
+tensorflow

@@ -1,4 +1,5 @@
-mediapipe opencv-python
+mediapipe 
+opencv-python
 numpy
 pyvirtualcam
 torch

@@ -1,15 +1,18 @@
 import cv2
 import os
-from datetime import datetime
 
-# Ask for the gesture label
+# Ask for the gesture name
 gesture_name = input("Enter the gesture name: ").strip()
 
-# Create folders for this gesture
-record_dir = os.path.join("recordings", gesture_name)
-os.makedirs(record_dir, exist_ok=True)
+# Ask for starting number
+start_num = int(input("What number are you on? ").strip())
+current_num = start_num
 
-capture_count = 0
+# Create folders for this gesture
+capture_dir = os.path.join("captures", gesture_name)
+record_dir = os.path.join("recordings", gesture_name)
+os.makedirs(capture_dir, exist_ok=True)
+os.makedirs(record_dir, exist_ok=True)
 
 # Replace 1 with your OBS Virtual Camera index
 cap = cv2.VideoCapture(1)
@@ -26,7 +29,6 @@ out = None
 recording = False
 
 print("\nControls:")
-print("  'c' → capture a single frame")
 print("  'r' → start/stop recording video")
 print("  'q' → quit\n")
 
@@ -41,31 +43,24 @@ while True:
 
     key = cv2.waitKey(1) & 0xFF
 
-    # Capture a single frame
-    if key == ord('c'):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        capture_filename = os.path.join(capture_dir, f"frame_{timestamp}.png")
-        cv2.imwrite(capture_filename, frame)
-        print(f"Saved snapshot: {capture_filename}")
-
     # Start/stop recording
-    elif key == ord('r'):
+    if key == ord('r'):
         recording = not recording
         if recording:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            video_filename = os.path.join(record_dir, f"recording_{timestamp}.mp4")
+            video_filename = os.path.join(record_dir, f"{gesture_name}_{current_num}.mp4")
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             out = cv2.VideoWriter(video_filename, fourcc, FPS, (WIDTH, HEIGHT))
-            print("Recording started...")
+            print(f"Recording started: {video_filename}")
         else:
             out.release()
-            print(f"Recording stopped. Saved to {video_filename}")
+            print(f"Recording stopped: {video_filename}")
+            current_num += 1  # increment for next recording
 
     # Quit
     elif key == ord('q'):
         if recording:
             out.release()
-            print(f"Recording stopped. Saved to {video_filename}")
+            print(f"Recording stopped: {video_filename}")
         break
 
     # Write frame to video if recording

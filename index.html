@@ -1,209 +1,284 @@
-import React, { useState, useEffect } from 'react';
-import { Video, MessageSquare } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASL Connect - Video Conference</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-const ASLVideoConference = () => {
-  const [roomName, setRoomName] = useState('');
-  const [userName, setUserName] = useState('');
-  const [isInCall, setIsInCall] = useState(false);
-  const [captions, setCaptions] = useState([]);
-  const [aslEnabled, setAslEnabled] = useState(true);
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1e3a8a 0%, #7e22ce 50%, #4338ca 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
 
-  // Simulated ASL backend connection - replace with actual WebSocket/API calls
-  useEffect(() => {
-    if (!isInCall || !aslEnabled) return;
+        .container {
+            max-width: 500px;
+            width: 100%;
+        }
 
-    // Placeholder for ASL translation backend
-    const simulateASLTranslation = setInterval(() => {
-      const examplePhrases = [
-        "Hello everyone",
-        "How are you?",
-        "Nice to meet you",
-        "Thank you",
-        "Good morning"
-      ];
-      
-      // This simulates receiving translations from your Python backend
-      const randomPhrase = examplePhrases[Math.floor(Math.random() * examplePhrases.length)];
-      const newCaption = {
-        id: Date.now(),
-        text: randomPhrase,
-        timestamp: new Date().toLocaleTimeString()
-      };
-      
-      setCaptions(prev => [...prev.slice(-4), newCaption]);
-    }, 8000);
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
 
-    return () => clearInterval(simulateASLTranslation);
-  }, [isInCall, aslEnabled]);
+        .header-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
 
-  const startCall = () => {
-    if (!roomName || !userName) return;
-    setIsInCall(true);
-  };
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 0.5rem;
+        }
 
-  const endCall = () => {
-    setIsInCall(false);
-    setCaptions([]);
-  };
+        .header p {
+            color: #bfdbfe;
+            font-size: 1rem;
+        }
 
-  if (isInCall) {
-    // Create Jitsi URL with parameters
-    const jitsiUrl = `https://meet.jit.si/${encodeURIComponent(roomName)}#userInfo.displayName="${encodeURIComponent(userName)}"&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
 
-    return (
-      <div className="h-screen w-screen bg-gray-900 flex flex-col">
-        {/* Video Container */}
-        <div className="flex-1 relative">
-          <iframe
-            src={jitsiUrl}
-            allow="camera; microphone; fullscreen; display-capture; autoplay"
-            className="w-full h-full border-0"
-            title="Jitsi Video Conference"
-          />
-          
-          {/* ASL Captions Overlay */}
-          {aslEnabled && captions.length > 0 && (
-            <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 w-11/12 max-w-3xl pointer-events-none">
-              <div className="bg-black bg-opacity-90 rounded-lg p-4 backdrop-blur-sm">
-                <div className="flex items-center gap-2 mb-2">
-                  <MessageSquare className="w-4 h-4 text-blue-400" />
-                  <span className="text-xs text-blue-400 font-semibold">ASL LIVE TRANSLATION</span>
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #bfdbfe;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.75rem;
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .form-group input::placeholder {
+            color: #bfdbfe;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.25);
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+        }
+
+        .checkbox-wrapper {
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: white;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 1.25rem;
+            height: 1.25rem;
+            cursor: pointer;
+            accent-color: #3b82f6;
+        }
+
+        .checkbox-group label {
+            cursor: pointer;
+            font-size: 0.95rem;
+            margin: 0;
+        }
+
+        .info-text {
+            font-size: 0.8rem;
+            color: #93c5fd;
+            margin-top: 0.5rem;
+            line-height: 1.4;
+        }
+
+        .join-button {
+            width: 100%;
+            padding: 1.125rem;
+            background: linear-gradient(90deg, #3b82f6 0%, #9333ea 100%);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+            margin-top: 0.5rem;
+        }
+
+        .join-button:hover:not(:disabled) {
+            background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4);
+        }
+
+        .join-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1.25rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 9999px;
+            backdrop-filter: blur(10px);
+            margin-top: 2rem;
+            font-size: 0.875rem;
+            color: #bfdbfe;
+        }
+
+        .instruction-box {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .instruction-box h3 {
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .instruction-box p {
+            color: #bfdbfe;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            .card {
+                padding: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-icon">🎥</div>
+            <h1>ASL Connect</h1>
+            <p>Video conferencing with real-time sign language translation</p>
+        </div>
+
+        <div class="card">
+            <div class="form-group">
+                <label for="userName">Your Name</label>
+                <input type="text" id="userName" placeholder="Enter your name">
+            </div>
+
+            <div class="form-group">
+                <label for="roomName">Room Name</label>
+                <input type="text" id="roomName" placeholder="Enter room name">
+            </div>
+
+            <div class="checkbox-wrapper">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="aslEnabled" checked>
+                    <label for="aslEnabled">Enable ASL Translation</label>
                 </div>
-                {captions.map((caption) => (
-                  <div key={caption.id} className="text-white text-lg font-medium mb-1 animate-fadeIn">
-                    {caption.text}
-                  </div>
-                ))}
-              </div>
+                <p class="info-text">Real-time American Sign Language translation will display as captions during your call</p>
             </div>
-          )}
+
+            <button class="join-button" id="joinButton" disabled>Join Video Conference</button>
         </div>
 
-        {/* Control Bar */}
-        <div className="bg-gray-800 border-t border-gray-700 p-4">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-2 bg-gray-700 rounded-lg">
-                <div className={`w-2 h-2 rounded-full ${aslEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
-                <span className="text-sm text-white">ASL Translation</span>
-              </div>
-              <button
-                onClick={() => setAslEnabled(!aslEnabled)}
-                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-              >
-                {aslEnabled ? 'Disable' : 'Enable'}
-              </button>
-            </div>
-            
-            <button
-              onClick={endCall}
-              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-            >
-              Leave Call
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Video className="w-12 h-12 text-blue-400" />
-            <h1 className="text-4xl font-bold text-white">ASL Connect</h1>
-          </div>
-          <p className="text-blue-200">Video conferencing with real-time sign language translation</p>
+        <div class="instruction-box">
+            <h3>💡 How ASL Translation Works:</h3>
+            <p>When enabled, your Python backend will analyze video frames and detect American Sign Language gestures in real-time. Translations appear as live captions beneath the video feed for all participants.</p>
         </div>
 
-        {/* Join Form */}
-        <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white border-opacity-20">
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-blue-200 mb-2">
-                Your Name
-              </label>
-              <input
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                placeholder="Enter your name"
-                className="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
+        <div style="text-align: center;">
+            <div class="badge">
+                💬 Powered by Jitsi & ASL AI
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-blue-200 mb-2">
-                Room Name
-              </label>
-              <input
-                type="text"
-                value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
-                placeholder="Enter room name"
-                className="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <label className="flex items-center gap-3 text-white cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={aslEnabled}
-                  onChange={(e) => setAslEnabled(e.target.checked)}
-                  className="w-5 h-5 rounded"
-                />
-                <span className="text-sm">Enable ASL Translation</span>
-              </label>
-            </div>
-
-            <button
-              onClick={startCall}
-              disabled={!roomName || !userName}
-              className="w-full py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-            >
-              Join Conference
-            </button>
-          </div>
         </div>
-
-        {/* Info Section */}
-        <div className="mt-8 space-y-4">
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white bg-opacity-10 rounded-full backdrop-blur-sm">
-              <MessageSquare className="w-4 h-4 text-blue-300" />
-              <span className="text-sm text-blue-200">Powered by Jitsi & ASL AI</span>
-            </div>
-          </div>
-          
-          <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 border border-white border-opacity-20">
-            <p className="text-xs text-blue-200 text-center">
-              💡 <strong>Tip:</strong> You'll need to allow camera and microphone access when prompted by your browser
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <style>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-      `}</style>
     </div>
-  );
-};
 
-export default ASLVideoConference;
+    <script>
+        var userName = document.getElementById('userName');
+        var roomName = document.getElementById('roomName');
+        var joinButton = document.getElementById('joinButton');
+        var aslCheckbox = document.getElementById('aslEnabled');
+
+        function checkInputs() {
+            joinButton.disabled = !userName.value.trim() || !roomName.value.trim();
+        }
+
+        userName.addEventListener('input', checkInputs);
+        roomName.addEventListener('input', checkInputs);
+
+        joinButton.addEventListener('click', function() {
+            var name = userName.value.trim();
+            var room = roomName.value.trim();
+            var aslEnabled = aslCheckbox.checked;
+            
+            if (!name || !room) return;
+
+            var jitsiUrl = 'https://meet.jit.si/' + encodeURIComponent(room) + '#userInfo.displayName="' + encodeURIComponent(name) + '"&config.startWithAudioMuted=false';
+            
+            var infoMessage = aslEnabled ? 
+                'Opening video conference with ASL translation enabled!\n\n⚠️ Remember to connect your Python ASL backend to process video frames.' :
+                'Opening video conference...';
+            
+            alert(infoMessage);
+            window.open(jitsiUrl, '_blank');
+        });
+
+        roomName.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !joinButton.disabled) {
+                joinButton.click();
+            }
+        });
+
+        userName.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !joinButton.disabled) {
+                joinButton.click();
+            }
+        });
+    </script>
+</body>
+</html>

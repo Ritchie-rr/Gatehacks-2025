@@ -1,0 +1,9 @@
+# Virtual environments
+asl-env/
+venv/
+.env/
+
+# Any env folder in subdirectories
+**/asl-env/
+**/venv/
+**/.env/

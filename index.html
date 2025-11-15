@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASL Connect - Self Hosted</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #111827;
+            color: white;
+        }
+
+        .join-screen {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1e3a8a 0%, #7e22ce 50%, #4338ca 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .join-container {
+            max-width: 450px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #bfdbfe;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.75rem;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .form-group input::placeholder {
+            color: #bfdbfe;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+        }
+
+        .join-button {
+            width: 100%;
+            padding: 1.125rem;
+            background: linear-gradient(90deg, #3b82f6 0%, #9333ea 100%);
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .join-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .call-screen {
+            display: none;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .call-screen.active {
+            display: flex;
+        }
+
+        .video-container {
+            flex: 1;
+            position: relative;
+            background: #000;
+        }
+
+        #jitsi-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .captions-overlay {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 800px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
+        .captions-overlay.active {
+            display: block;
+        }
+
+        .captions-header {
+            color: #60a5fa;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .caption-text {
+            color: white;
+            font-size: 1.125rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .control-bar {
+            background: #1f2937;
+            border-top: 1px solid #374151;
+            padding: 1rem;
+        }
+
+        .control-content {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #374151;
+            border-radius: 0.5rem;
+        }
+
+        .status-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background: #6b7280;
+        }
+
+        .status-dot.connected {
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .leave-button {
+            padding: 0.5rem 1.5rem;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Join Screen -->
+    <div class="join-screen" id="joinScreen">
+        <div class="join-container">
+            <div class="header">
+                <h1>🎥 ASL Connect</h1>
+                <p style="color: #bfdbfe;">Self-hosted with ASL Backend</p>
+            </div>
+
+            <div class="form-group">
+                <label>Your Name</label>
+                <input type="text" id="userName" placeholder="Enter your name">
+            </div>
+
+            <div class="form-group">
+                <label>Room Name</label>
+                <input type="text" id="roomName" placeholder="Enter room name">
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="aslEnabled" checked>
+                <label for="aslEnabled">Enable ASL Translation</label>
+            </div>
+
+            <button class="join-button" id="joinButton" disabled>Join Conference</button>
+        </div>
+    </div>
+
+    <!-- Call Screen -->
+    <div class="call-screen" id="callScreen">
+        <div class="video-container">
+            <div id="jitsi-container"></div>
+            
+            <div class="captions-overlay" id="captionsOverlay">
+                <div class="captions-header">🤟 ASL LIVE TRANSLATION</div>
+                <div id="captionsContent"></div>
+            </div>
+        </div>
+
+        <div class="control-bar">
+            <div class="control-content">
+                <div class="status-indicator">
+                    <div class="status-dot" id="backendStatus"></div>
+                    <span id="statusText">Backend Disconnected</span>
+                </div>
+                <button class="leave-button" id="leaveButton">Leave Call</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://meet.jit.si/external_api.js"></script>
+    <script>
+        // Configuration - UPDATE THESE FOR YOUR SERVER
+        const BACKEND_URL = 'ws://YOUR_SERVER_IP:5000/ws';  // WebSocket URL
+        
+        let jitsiApi = null;
+        let ws = null;
+        let aslEnabled = false;
+        let frameInterval = null;
+
+        const elements = {
+            userName: document.getElementById('userName'),
+            roomName: document.getElementById('roomName'),
+            joinButton: document.getElementById('joinButton'),
+            joinScreen: document.getElementById('joinScreen'),
+            callScreen: document.getElementById('callScreen'),
+            leaveButton: document.getElementById('leaveButton'),
+            backendStatus: document.getElementById('backendStatus'),
+            statusText: document.getElementById('statusText'),
+            captionsOverlay: document.getElementById('captionsOverlay'),
+            captionsContent: document.getElementById('captionsContent'),
+            aslCheckbox: document.getElementById('aslEnabled')
+        };
+
+        // Enable join button when inputs filled
+        function checkInputs() {
+            elements.joinButton.disabled = !elements.userName.value.trim() || !elements.roomName.value.trim();
+        }
+        elements.userName.addEventListener('input', checkInputs);
+        elements.roomName.addEventListener('input', checkInputs);
+
+        // Join call
+        elements.joinButton.addEventListener('click', function() {
+            if (!elements.userName.value.trim() || !elements.roomName.value.trim()) return;
+
+            aslEnabled = elements.aslCheckbox.checked;
+            elements.joinScreen.classList.add('hidden');
+            elements.callScreen.classList.add('active');
+
+            initJitsi();
+            if (aslEnabled) {
+                connectToBackend();
+            }
+        });
+
+        // Initialize Jitsi
+        function initJitsi() {
+            const options = {
+                roomName: elements.roomName.value,
+                width: '100%',
+                height: '100%',
+                parentNode: document.getElementById('jitsi-container'),
+                userInfo: {
+                    displayName: elements.userName.value
+                },
+                configOverwrite: {
+                    prejoinPageEnabled: false,
+                    startWithAudioMuted: false,
+                    startWithVideoMuted: false
+                }
+            };
+
+            jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', options);
+
+            jitsiApi.addEventListener('videoConferenceJoined', function() {
+                console.log('Joined conference');
+                if (aslEnabled) {
+                    startVideoCapture();
+                }
+            });
+
+            jitsiApi.addEventListener('videoConferenceLeft', endCall);
+        }
+
+        // Connect to Python backend via WebSocket
+        function connectToBackend() {
+            try {
+                ws = new WebSocket(BACKEND_URL);
+
+                ws.onopen = function() {
+                    console.log('Connected to ASL backend');
+                    elements.backendStatus.classList.add('connected');
+                    elements.statusText.textContent = 'ASL Backend Connected';
+                    elements.captionsOverlay.classList.add('active');
+                };
+
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    if (data.translation) {
+                        addCaption(data.translation);
+                    }
+                };
+
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    elements.statusText.textContent = 'Backend Connection Error';
+                };
+
+                ws.onclose = function() {
+                    console.log('Disconnected from backend');
+                    elements.backendStatus.classList.remove('connected');
+                    elements.statusText.textContent = 'Backend Disconnected';
+                };
+            } catch (error) {
+                console.error('Failed to connect to backend:', error);
+            }
+        }
+
+        // Capture video frames and send to backend
+        function startVideoCapture() {
+            // Create hidden canvas for frame capture
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 640;
+            canvas.height = 480;
+
+            // Capture frames every 200ms (5 FPS)
+            frameInterval = setInterval(function() {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+                // Get video element from Jitsi
+                const videoElement = document.querySelector('video');
+                if (videoElement && videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+                    // Draw video frame to canvas
+                    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convert to base64 and send to backend
+                    const frameData = canvas.toDataURL('image/jpeg', 0.7);
+                    ws.send(JSON.stringify({
+                        type: 'frame',
+                        data: frameData,
+                        timestamp: Date.now()
+                    }));
+                }
+            }, 200);
+        }
+
+        // Add caption to display
+        function addCaption(text) {
+            const caption = document.createElement('div');
+            caption.className = 'caption-text';
+            caption.textContent = text;
+            elements.captionsContent.appendChild(caption);
+
+            // Keep only last 3 captions
+            while (elements.captionsContent.children.length > 3) {
+                elements.captionsContent.removeChild(elements.captionsContent.firstChild);
+            }
+
+            // Remove caption after 5 seconds
+            setTimeout(function() {
+                if (caption.parentNode) {
+                    caption.parentNode.removeChild(caption);
+                }
+            }, 5000);
+        }
+
+        // Leave call
+        elements.leaveButton.addEventListener('click', endCall);
+
+        function endCall() {
+            if (jitsiApi) {
+                jitsiApi.dispose();
+                jitsiApi = null;
+            }
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            if (frameInterval) {
+                clearInterval(frameInterval);
+                frameInterval = null;
+            }
+            elements.captionsContent.innerHTML = '';
+            elements.captionsOverlay.classList.remove('active');
+            elements.callScreen.classList.remove('active');
+            elements.joinScreen.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

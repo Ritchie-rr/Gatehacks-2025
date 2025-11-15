@@ -6,9 +6,7 @@ from datetime import datetime
 gesture_name = input("Enter the gesture name: ").strip()
 
 # Create folders for this gesture
-capture_dir = os.path.join("captures", gesture_name)
 record_dir = os.path.join("recordings", gesture_name)
-os.makedirs(capture_dir, exist_ok=True)
 os.makedirs(record_dir, exist_ok=True)
 
 capture_count = 0

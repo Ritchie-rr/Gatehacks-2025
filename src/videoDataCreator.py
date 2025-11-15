@@ -9,9 +9,7 @@ start_num = int(input("What number are you on? ").strip())
 current_num = start_num
 
 # Create folders for this gesture
-capture_dir = os.path.join("captures", gesture_name)
 record_dir = os.path.join("recordings", gesture_name)
-os.makedirs(capture_dir, exist_ok=True)
 os.makedirs(record_dir, exist_ok=True)
 
 # Replace 1 with your OBS Virtual Camera index
@@ -22,7 +20,7 @@ if not cap.isOpened():
 
 WIDTH = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 HEIGHT = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-FPS = 20  # Or match your OBS FPS
+FPS = 30 
 
 # Setup video writer (initialized when recording starts)
 out = None

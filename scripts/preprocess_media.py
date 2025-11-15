@@ -6,7 +6,10 @@ import mediapipe as mp # MediaPipe for hand landmark detection
  
 RAW_DATA_DIR = "../data/raw" # Raw video path
 KEYPOINT_DIR = "../data/keypoints" # Path for new .npy keypoints
-MAX_FRAMES = 60 # Max # of frames per sequence (cut or pad all videos to this length)
+
+LABEL_DIR = "../data/labels"  # Path for text label files
+
+MAX_FRAMES = 60 # Max number of frames per sequence (cut or pad all videos to this length)
 
 
 mp_hands = mp.solutions.hands # Load the MediaPipe Hands solution
@@ -73,8 +76,14 @@ def extract_keypoints_from_video(video_path):
     return sequence
 
 def process_all_videos():
-    # Ensure the output directory exists
+    # Ensure output directories exist
     os.makedirs(KEYPOINT_DIR, exist_ok=True)
+
+    # Ensure label directory exists
+    os.makedirs(LABEL_DIR, exist_ok=True)
+
+    # Global counter for flat numbering
+    counter = 1
 
     # Loop over each gesture class inside raw data directory
     for label in os.listdir(RAW_DATA_DIR):
@@ -85,10 +94,6 @@ def process_all_videos():
             continue
 
         print(f"\n▶ Processing class: {label}")
-
-        # Create output folder for this gesture label
-        label_out_dir = os.path.join(KEYPOINT_DIR, label)
-        os.makedirs(label_out_dir, exist_ok=True)
 
         # Loop through all video files inside this class folder
         for video_file in os.listdir(raw_label_path):
@@ -104,15 +109,24 @@ def process_all_videos():
             # Extract keypoint sequence from this video
             sequence = extract_keypoints_from_video(video_path)
 
-            # Change extension: video.mp4 → video.npy
-            out_name = video_file.rsplit(".", 1)[0] + ".npy"
-            out_path = os.path.join(label_out_dir, out_name)
+            # Use sequential global filenames (video1, video2...)
+            base_name = f"video{counter}"
+
+            # Save to flat keypoints directory
+            out_path = os.path.join(KEYPOINT_DIR, base_name + ".npy")
 
             # Save the processed sequence
             np.save(out_path, sequence)
 
-    print("\n✅ Finished extracting all keypoints!")
+            # Create matching label text file
+            label_path = os.path.join(LABEL_DIR, base_name + ".txt")
+            with open(label_path, "w") as f:
+                f.write(label)  # the folder name (e.g., "hello")
 
-# When this file is executed directly (not imported), run the pipeline
+            # Increment counter
+            counter += 1
+
+    print("\n✅ Finished extracting all keypoints and label files!")
+
 if __name__ == "__main__":
     process_all_videos()

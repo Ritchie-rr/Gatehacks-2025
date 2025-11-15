@@ -2,15 +2,19 @@ import cv2
 import os
 from datetime import datetime
 
-# Create folders for captures and recordings
-os.makedirs("captures", exist_ok=True)
-os.makedirs("recordings", exist_ok=True)
+# Ask for the gesture label
+gesture_name = input("Enter the gesture name: ").strip()
+
+# Create folders for this gesture
+capture_dir = os.path.join("captures", gesture_name)
+record_dir = os.path.join("recordings", gesture_name)
+os.makedirs(capture_dir, exist_ok=True)
+os.makedirs(record_dir, exist_ok=True)
 
 capture_count = 0
 
 # Replace 1 with your OBS Virtual Camera index
 cap = cv2.VideoCapture(1)
-
 if not cap.isOpened():
     print("Cannot open OBS Virtual Camera")
     exit()
@@ -19,11 +23,14 @@ WIDTH = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 HEIGHT = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 FPS = 20  # Or match your OBS FPS
 
-# Setup video writer (will initialize when recording starts)
+# Setup video writer (initialized when recording starts)
 out = None
 recording = False
 
-print("Press 'c' to capture a frame, 'r' to start/stop recording, 'q' to quit.")
+print("\nControls:")
+print("  'c' → capture a single frame")
+print("  'r' → start/stop recording video")
+print("  'q' → quit\n")
 
 while True:
     ret, frame = cap.read()
@@ -32,23 +39,23 @@ while True:
         break
 
     frame = cv2.flip(frame, 1)  # mirror
-    cv2.imshow("OBS Virtual Camera Feed", frame)
+    cv2.imshow(f"{gesture_name} - OBS Feed", frame)
 
     key = cv2.waitKey(1) & 0xFF
 
     # Capture a single frame
     if key == ord('c'):
-        capture_count += 1
-        capture_filename = f"captures/frame_{capture_count}.png"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        capture_filename = os.path.join(capture_dir, f"frame_{timestamp}.png")
         cv2.imwrite(capture_filename, frame)
-        print(f"Saved {capture_filename}")
+        print(f"Saved snapshot: {capture_filename}")
 
     # Start/stop recording
     elif key == ord('r'):
         recording = not recording
         if recording:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            video_filename = f"recordings/recording_{timestamp}.mp4"
+            video_filename = os.path.join(record_dir, f"recording_{timestamp}.mp4")
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             out = cv2.VideoWriter(video_filename, fourcc, FPS, (WIDTH, HEIGHT))
             print("Recording started...")

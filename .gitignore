@@ -2,8 +2,10 @@
 asl-env/
 venv/
 .env/
+myenv/
 
 # Any env folder in subdirectories
 **/asl-env/
 **/venv/
 **/.env/
+**/myenv/

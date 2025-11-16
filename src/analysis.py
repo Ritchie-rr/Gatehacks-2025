@@ -5,7 +5,6 @@ from sklearn.metrics import classification_report, confusion_matrix, ConfusionMa
 from dataloader import ASLDataModule
 
 def plot_learning_curves(train_losses, val_losses, train_accuracies, val_accuracies):
-    # TODO: Use this function to plot learning curve
     """Plot learning curves for loss and accuracy"""
     
     epochs = range(1, len(train_losses) + 1)

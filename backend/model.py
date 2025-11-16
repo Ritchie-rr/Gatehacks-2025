@@ -38,7 +38,4 @@ class ASL_BiLSTM(nn.Module):
         # Classifier
         logits = self.fc(last_hidden)
 
-        # # Convert to probabilities
-        # probs = self.softmax(logits)
-
         return logits

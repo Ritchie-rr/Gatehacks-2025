@@ -43,9 +43,7 @@ def extract_keypoints_from_video(video_path):
 
         keypoints = []
 
-        # ----------------------------------------------------
         # Hand Landmarks (21 points × 3 = 63 dims)
-        # ----------------------------------------------------
         if hand_results.multi_hand_landmarks:
             hand = hand_results.multi_hand_landmarks[0]
 
@@ -93,8 +91,6 @@ def process_all_videos():
         if not os.path.isdir(raw_label_path):
             continue
 
-        print(f"\n▶ Processing class: {label}")
-
         # Loop through all video files inside this class folder
         for video_file in os.listdir(raw_label_path):
 
@@ -104,7 +100,6 @@ def process_all_videos():
 
             # Full path to the video file
             video_path = os.path.join(raw_label_path, video_file)
-            print(f"   - Extracting: {video_file}")
 
             # Extract keypoint sequence from this video
             sequence = extract_keypoints_from_video(video_path)
@@ -125,8 +120,6 @@ def process_all_videos():
 
             # Increment counter
             counter += 1
-
-    print("\n✅ Finished extracting all keypoints and label files!")
 
 
 # When this file is executed directly (not imported), run the pipeline

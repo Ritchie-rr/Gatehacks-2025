@@ -13,138 +13,67 @@ MAX_FRAMES = 60 # Max number of frames per sequence (cut or pad all videos to th
 
 
 mp_hands = mp.solutions.hands # Load the MediaPipe Hands solution
-mp_face = mp.solutions.face_mesh # Load the MediaPipe Face solution
 
-# Face and Head Landmark index list
-FACE_IDX = {
-    "right_eye":  [33, 133, 160, 159, 158, 157, 173, 144],
-    "left_eye":   [362, 263, 387, 386, 385, 384, 398, 373],
-    "right_brow": [46, 53, 52, 65, 55],
-    "left_brow":  [276, 283, 282, 295, 285],
-    "mouth_outer":[61,146,91,181,84,17,314,405,321,375],
-    "mouth_inner":[78,95,88,178,87,14,317,402,310,415]
-}
-
-# Combined 46 face points → 46 × 3 = 138 dims
-SELECTED_FACE_LANDMARKS = (
-    FACE_IDX["right_eye"] +
-    FACE_IDX["left_eye"] +
-    FACE_IDX["right_brow"] +
-    FACE_IDX["left_brow"] +
-    FACE_IDX["mouth_outer"] +
-    FACE_IDX["mouth_inner"]
-)
-
-# 7 head movement points → 7 × 3 = 21 dims
-HEAD_IDX = [
-    1,    # nose tip
-    6,    # nose bridge
-    152,  # chin
-    234,  # left temple
-    454,  # right temple
-    33,   # left eye outer
-    263   # right eye outer
-]
-
-# Total dims = 63 (hands) + 138 (face) + 21 (head) = 222
-FEATURE_DIM = 222
+# Total dims = 63 (hands)
+FEATURE_DIM = 63
 
 
 # Create an instance of the Hands model
 hands = mp_hands.Hands(
     static_image_mode=False,       # Treat frames as a continuous video stream
-    max_num_hands=2,               # Only detect one hand per frame
+    max_num_hands=1,               # Only detect one hand per frame
     min_detection_confidence=0.5,  # Minimum threshold to detect a hand
     min_tracking_confidence=0.5    # Minimum threshold to track landmarks
-)
-
-# Create an instance of the Face model
-face = mp_face.FaceMesh(
-    static_image_mode=False, # Same comments as above
-    max_num_faces=1, 
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5
 )
 
 
 def extract_keypoints_from_video(video_path):
     cap = cv2.VideoCapture(video_path) #Open the video file for reading
 
-    # This will store the sequence of keypoint frames
     sequence = []
+    last_valid = np.zeros(FEATURE_DIM)  # start with zeros
 
-    # Read video frame-by-frame
     while True:
-        ret, frame = cap.read()     # ret: True/False, frame: image array
-        if not ret:                 # Stop if no more frames
+        ret, frame = cap.read()
+        if not ret:
             break
 
-        # Convert OpenCV's default BGR format to RGB for MediaPipe
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        # Run both hand and face models
         hand_results = hands.process(rgb)
-        face_results = face.process(rgb)
 
-        # Will hold one frame's (x, y, z) coordinates
-        keypoints = []              
+        keypoints = []
 
         # ----------------------------------------------------
         # Hand Landmarks (21 points × 3 = 63 dims)
         # ----------------------------------------------------
         if hand_results.multi_hand_landmarks:
-            hand = hand_results.multi_hand_landmarks[0]   # first detected hand
+            hand = hand_results.multi_hand_landmarks[0]
 
             for lm in hand.landmark:
                 keypoints.extend([lm.x, lm.y, lm.z])
+
+            keypoints = np.array(keypoints)
+            last_valid = keypoints.copy()  # update last valid
         else:
-            keypoints.extend([0.0] * 63) # Needs to be 63
-    
-        # ----------------------------------------------------
-        # Face Landmarks (46 points × 3 = 138 dims)
-        # ----------------------------------------------------
-        if face_results.multi_face_landmarks:
-            face_lm = face_results.multi_face_landmarks[0]
+            # No hand → reuse last valid frame
+            keypoints = last_valid.copy()
 
-            for idx in SELECTED_FACE_LANDMARKS:
-                lm = face_lm.landmark[idx]
-                keypoints.extend([lm.x, lm.y, lm.z])
-        else:
-            keypoints.extend([0.0] * 138) # Needs to be 138-dim
-
-        # ----------------------------------------------------
-        # Head Movement Landmarks (7 points × 3 = 21 dims)
-        # ----------------------------------------------------
-        if face_results.multi_face_landmarks:
-            face_lm = face_results.multi_face_landmarks[0]  # (uses same face result)
-
-            for idx in HEAD_IDX:
-                lm = face_lm.landmark[idx]
-                keypoints.extend([lm.x, lm.y, lm.z])
-        else:
-            keypoints.extend([0.0] * 21) # Needs to be 21-dim
-
-        # Append 222-dim frame vector
         sequence.append(keypoints)
 
-    # Release video resource
     cap.release()
-
-    # Convert Python list into a NumPy array
     sequence = np.array(sequence)
 
-    ### >>> FIXED: Pad or crop based on 222 feature dims
     num_frames = sequence.shape[0]
 
     if num_frames >= MAX_FRAMES:
         sequence = sequence[:MAX_FRAMES]
     else:
         pad_len = MAX_FRAMES - num_frames
-        padding = np.zeros((pad_len, FEATURE_DIM))
+        # pad using last frame, NOT zeros
+        padding = np.tile(sequence[-1], (pad_len, 1))
         sequence = np.vstack([sequence, padding])
 
     return sequence
-
 
 def process_all_videos():
     # Ensure output directories exist

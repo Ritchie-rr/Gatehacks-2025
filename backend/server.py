@@ -3,14 +3,12 @@ import base64
 import io
 import os
 import json
-from collections import deque
+import tempfile
 
 import numpy as np
-from PIL import Image
 
 import torch
 import torch.nn.functional as F
-import cv2
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,11 +17,11 @@ import uvicorn
 # Import model
 from model import ASL_BiLSTM
 
-# Import preprocess globals (hands, face, landmark indices)
-import preprocess_media as preprocess
+# Import preprocess_media - use its extract_keypoints_from_video function
+import preprocess_media
 
 # -------------------------------------------------
-# Device
+# Configuration
 # -------------------------------------------------
 device = torch.device(
     "cuda" if torch.cuda.is_available()
@@ -31,72 +29,24 @@ device = torch.device(
     else "cpu"
 )
 
-print(f"Using device: {device}")
+print(f"🚀 Using device: {device}")
 
 LABELS = ['hello', 'how are you', 'nice to meet you', 'please', 'sorry', 'thank you']
-
-SEQ_LEN = 60
+SEQ_LEN = 60  # Exactly 60 frames for model
 FEATURE_DIM = 222
 
-frame_buffer = deque(maxlen=SEQ_LEN)
-
 # -------------------------------------------------
-# Load model
+# Load Model
 # -------------------------------------------------
-MODEL_PATH = os.path.join(os.path.dirname(__file__),"../src/best.pt")
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "../src/best.pt")
 
 model = ASL_BiLSTM()
-
-if os.path.exists(MODEL_PATH):
-    state = torch.load(MODEL_PATH, map_location=device)
-    model.load_state_dict(state)
-    print("Loaded model weights from best.pt")
-else:
-    print("WARNING: best.pt not found — using random weights.")
-
 model.to(device)
+model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
 model.eval()
 
 # -------------------------------------------------
-# Frame → keypoints (222)
-# -------------------------------------------------
-def extract_keypoints_from_frame(frame_bgr: np.ndarray):
-
-    rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-
-    hand_results = preprocess.hands.process(rgb)
-    face_results = preprocess.face.process(rgb)
-
-    keypoints = []
-
-    if hand_results.multi_hand_landmarks:
-        hand = hand_results.multi_hand_landmarks[0]
-        for lm in hand.landmark:
-            keypoints.extend([lm.x, lm.y, lm.z])
-    else:
-        keypoints.extend([0.0] * 63)
-
-    if face_results.multi_face_landmarks:
-        face_lm = face_results.multi_face_landmarks[0]
-        for idx in preprocess.SELECTED_FACE_LANDMARKS:
-            lm = face_lm.landmark[idx]
-            keypoints.extend([lm.x, lm.y, lm.z])
-    else:
-        keypoints.extend([0.0] * 138)
-
-    if face_results.multi_face_landmarks:
-        face_lm = face_results.multi_face_landmarks[0]
-        for idx in preprocess.HEAD_IDX:
-            lm = face_lm.landmark[idx]
-            keypoints.extend([lm.x, lm.y, lm.z])
-    else:
-        keypoints.extend([0.0] * 21)
-
-    return np.array(keypoints, dtype=np.float32)
-
-
-# -------------------------------------------------
-# FastAPI + CORS
+# FastAPI App
 # -------------------------------------------------
 app = FastAPI()
 app.add_middleware(
@@ -108,60 +58,130 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "message": "ASL backend running"}
+    return {
+        "status": "ok", 
+        "message": "ASL Recognition Backend Running",
+        "device": str(device),
+        "labels": LABELS,
+        "input_format": "2-second MP4/WebM video as base64"
+    }
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "healthy",
+        "model_loaded": MODEL_PATH and os.path.exists(MODEL_PATH),
+        "device": str(device)
+    }
 
 # -------------------------------------------------
-# WebSocket endpoint
+# WebSocket Endpoint - Receives MP4 Video
 # -------------------------------------------------
 @app.websocket("/video")
 async def video_ws(ws: WebSocket):
     await ws.accept()
-    print("WebSocket connected")
-
+    print("🔌 WebSocket connected")
+    
     try:
         while True:
+            # Receive message
             msg = await ws.receive_text()
-            data = json.loads(msg)
-
-            frame_data_url = data.get("frame")
-            if not frame_data_url:
+            
+            try:
+                data = json.loads(msg)
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON decode error: {e}")
+                await ws.send_text(json.dumps({
+                    "error": "Invalid JSON format"
+                }))
                 continue
-
-            _, b64data = frame_data_url.split(",", 1)
-            img_bytes = base64.b64decode(b64data)
-
-            pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-            frame_np = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-
-            kp = extract_keypoints_from_frame(frame_np)
-            frame_buffer.append(kp)
-
-            if len(frame_buffer) < SEQ_LEN:
+            
+            video_base64 = data.get("video")
+            video_format = data.get("format", "webm")
+            
+            if not video_base64:
+                print("❌ No video data received")
+                await ws.send_text(json.dumps({
+                    "error": "No video data in request"
+                }))
                 continue
-
-            sequence = np.stack(frame_buffer)
-
-            X = torch.tensor(sequence, dtype=torch.float32).unsqueeze(0).to(device)
-
-            with torch.no_grad():
-                logits = model(X)
-                probs = F.softmax(logits, dim=1)
-                conf, idx = torch.max(probs, dim=1)
-
-            pred_idx = int(idx.item())
-            conf = float(conf.item())
-            label = LABELS[pred_idx]
-
-            await ws.send_text(json.dumps({
-                "prediction": label,
-                "confidence": conf
-            }))
-
+            
+            print(f"📹 Received video: {len(video_base64)} chars, format: {video_format}")
+            
+            # Decode base64 video
+            try:
+                video_bytes = base64.b64decode(video_base64)
+                print(f"✅ Decoded video: {len(video_bytes)} bytes")
+            except Exception as e:
+                print(f"❌ Base64 decode error: {e}")
+                await ws.send_text(json.dumps({
+                    "error": "Failed to decode video"
+                }))
+                continue
+            
+            # Save to temporary file
+            temp_video = None
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{video_format}') as f:
+                    f.write(video_bytes)
+                    temp_video = f.name
+                
+                print(f"💾 Saved to temp file: {temp_video}")
+                
+                # Use preprocess_media's extract_keypoints_from_video function
+                # This returns a (60, 222) numpy array - already padded/trimmed to 60 frames
+                sequence = preprocess_media.extract_keypoints_from_video(temp_video)
+                
+                print(f"✅ Extracted keypoint sequence: {sequence.shape}")
+                
+                # Verify shape
+                if sequence.shape != (SEQ_LEN, FEATURE_DIM):
+                    raise Exception(f"Expected shape ({SEQ_LEN}, {FEATURE_DIM}), got {sequence.shape}")
+                
+                # Convert to tensor
+                X = torch.tensor(sequence, dtype=torch.float32).unsqueeze(0).to(device)
+                
+                # Run inference
+                with torch.no_grad():
+                    logits = model(X)
+                    probs = F.softmax(logits, dim=1)
+                    conf, idx = torch.max(probs, dim=1)
+                
+                label = LABELS[int(idx.item())]
+                confidence = float(conf.item())
+                
+                print(f"🎯 Prediction: {label} ({confidence*100:.1f}%)")
+                
+                # Send result
+                await ws.send_text(json.dumps({
+                    "prediction": label,
+                    "confidence": confidence
+                }))
+                
+            except Exception as e:
+                print(f"❌ Processing error: {e}")
+                await ws.send_text(json.dumps({
+                    "error": f"Video processing failed: {str(e)}"
+                }))
+            
+            finally:
+                # Clean up temp file
+                if temp_video and os.path.exists(temp_video):
+                    try:
+                        os.unlink(temp_video)
+                        print(f"🗑️  Deleted temp file: {temp_video}")
+                    except:
+                        pass
+    
     except WebSocketDisconnect:
-        print("WebSocket disconnected")
+        print("🔌 WebSocket disconnected")
     except Exception as e:
-        print("WebSocket Error:", e)
+        print(f"❌ WebSocket error: {e}")
 
 
 if __name__ == "__main__":
+    print("🚀 Starting ASL Recognition Server...")
+    print(f"📍 Device: {device}")
+    print(f"📋 Labels: {LABELS}")
+    print(f"📹 Input: 2-second video (WebM/MP4)")
     uvicorn.run(app, host="0.0.0.0", port=8000)

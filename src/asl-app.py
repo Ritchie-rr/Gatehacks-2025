@@ -69,7 +69,7 @@ hands = mp_hands.Hands(
 )
 
 # Class labels (adjust to match your training)
-CLASS_LABELS = list('ABCDEFGHIJKLMNOPQRSTUVWXYZ')  # 26 letters
+CLASS_LABELS = ["hello", "how are you", "nice to meet you", "please", "sorry", "thank you"]  # sayings
 
 # Frame buffer for sequence (60 frames)
 SEQUENCE_LENGTH = 60
@@ -912,7 +912,7 @@ if __name__ == '__main__':
     print(f"🔤 Classes: {len(CLASS_LABELS)}")
     print("=" * 60)
     print(f"\n✨ Server starting on http://localhost:5000")
-    print(f"✨ Also available at http://127.0.0.1:5000")
+    # print(f"✨ Also available at http://127.0.0.1:5000")
     print(f"\n📝 TODO: Load your trained model weights!")
     print(f"   Uncomment line: model.load_state_dict(...)")
     print("=" * 60)

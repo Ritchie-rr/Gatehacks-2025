@@ -61,8 +61,8 @@ def predict(model, X_test_loader, device):
         # Hint: Use classification_report, confusion_matrix from sklearn.metrics
         # Print or return precision, recall, F1-score for each class
         # metrics
-        report_text = classification_report(all_targets, all_predictions, digits=3)
-        cm = confusion_matrix(all_targets, all_predictions, labels=[0, 1, 2, 3])
+        report_text = classification_report(all_targets, all_predictions, digits=5)
+        cm = confusion_matrix(all_targets, all_predictions, labels=[0, 1, 2, 3, 4, 5])
         rep_dict = classification_report(all_targets, all_predictions, output_dict=True)
         macro_f1 = rep_dict["macro avg"]["f1-score"]
         weighted_f1 = rep_dict["weighted avg"]["f1-score"]
@@ -91,18 +91,30 @@ if __name__ == "__main__":
     # Run training/validation; also get objects needed for final prediction
     model = ASL_BiLSTM().to(device)
     # load the best model
-    model.load_state_dict(torch.load("best.pt"))
+    model.load_state_dict(torch.load("best.pt", map_location=device))
 
     dm = ASLDataModule()
     dm.setup()
-    test_loader = dm.test_dataloader()
 
+    val_loader = dm.val_dataloader()
+    val_metrics = predict(model, val_loader, device)
+    print("Val accuracy:", val_metrics["accuracy"])
+    print(val_metrics["report"])
+
+    val_cfm = ConfusionMatrixDisplay(
+        confusion_matrix=val_metrics["confusion_matrix"],
+        display_labels=[0, 1, 2, 3, 4, 5]
+    )
+    val_cfm.plot()
+
+
+    test_loader = dm.test_dataloader()
     test_metrics = predict(model, test_loader, device)
     print("Test accuracy:", test_metrics["accuracy"])
     print(test_metrics["report"])
     cfm_test = ConfusionMatrixDisplay(
         confusion_matrix=test_metrics["confusion_matrix"],
-        display_labels=[0, 1, 2, 3]
+        display_labels=[0, 1, 2, 3, 4, 5]
     )
     cfm_test.plot()
     plt.show()

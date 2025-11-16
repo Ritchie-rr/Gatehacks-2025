@@ -34,6 +34,7 @@ class ASLDataset(Dataset):
         unique = sorted(set(raw_labels))
         self.label_to_idx = {lbl: i for i, lbl in enumerate(unique)}
         self.targets = [self.label_to_idx[lbl] for lbl in raw_labels]
+        print("Label → Index mapping:", self.label_to_idx)
 
     def __len__(self):
         return len(self.samples)

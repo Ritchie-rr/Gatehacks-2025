@@ -1,0 +1,167 @@
+# backend/server.py
+import base64
+import io
+import os
+import json
+from collections import deque
+
+import numpy as np
+from PIL import Image
+
+import torch
+import torch.nn.functional as F
+import cv2
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+
+# Import model
+from src.model import ASL_BiLSTM
+
+# Import preprocess globals (hands, face, landmark indices)
+import scripts.preprocess_media as preprocess
+
+# -------------------------------------------------
+# Device
+# -------------------------------------------------
+device = torch.device(
+    "cuda" if torch.cuda.is_available()
+    else "mps" if torch.backends.mps.is_available()
+    else "cpu"
+)
+
+print(f"Using device: {device}")
+
+LABELS = ['hello', 'how are you', 'nice to meet you', 'please', 'sorry', 'thank you']
+
+SEQ_LEN = 60
+FEATURE_DIM = 222
+
+frame_buffer = deque(maxlen=SEQ_LEN)
+
+# -------------------------------------------------
+# Load model
+# -------------------------------------------------
+MODEL_PATH = os.path.join(os.path.dirname(__file__),"../src/best.pt")
+
+model = ASL_BiLSTM()
+
+if os.path.exists(MODEL_PATH):
+    state = torch.load(MODEL_PATH, map_location=device)
+    model.load_state_dict(state)
+    print("Loaded model weights from best.pt")
+else:
+    print("WARNING: best.pt not found — using random weights.")
+
+model.to(device)
+model.eval()
+
+# -------------------------------------------------
+# Frame → keypoints (222)
+# -------------------------------------------------
+def extract_keypoints_from_frame(frame_bgr: np.ndarray):
+
+    rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+
+    hand_results = preprocess.hands.process(rgb)
+    face_results = preprocess.face.process(rgb)
+
+    keypoints = []
+
+    if hand_results.multi_hand_landmarks:
+        hand = hand_results.multi_hand_landmarks[0]
+        for lm in hand.landmark:
+            keypoints.extend([lm.x, lm.y, lm.z])
+    else:
+        keypoints.extend([0.0] * 63)
+
+    if face_results.multi_face_landmarks:
+        face_lm = face_results.multi_face_landmarks[0]
+        for idx in preprocess.SELECTED_FACE_LANDMARKS:
+            lm = face_lm.landmark[idx]
+            keypoints.extend([lm.x, lm.y, lm.z])
+    else:
+        keypoints.extend([0.0] * 138)
+
+    if face_results.multi_face_landmarks:
+        face_lm = face_results.multi_face_landmarks[0]
+        for idx in preprocess.HEAD_IDX:
+            lm = face_lm.landmark[idx]
+            keypoints.extend([lm.x, lm.y, lm.z])
+    else:
+        keypoints.extend([0.0] * 21)
+
+    return np.array(keypoints, dtype=np.float32)
+
+
+# -------------------------------------------------
+# FastAPI + CORS
+# -------------------------------------------------
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+async def root():
+    return {"status": "ok", "message": "ASL backend running"}
+
+# -------------------------------------------------
+# WebSocket endpoint
+# -------------------------------------------------
+@app.websocket("/video")
+async def video_ws(ws: WebSocket):
+    await ws.accept()
+    print("WebSocket connected")
+
+    try:
+        while True:
+            msg = await ws.receive_text()
+            data = json.loads(msg)
+
+            frame_data_url = data.get("frame")
+            if not frame_data_url:
+                continue
+
+            _, b64data = frame_data_url.split(",", 1)
+            img_bytes = base64.b64decode(b64data)
+
+            pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            frame_np = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+
+            kp = extract_keypoints_from_frame(frame_np)
+            frame_buffer.append(kp)
+
+            if len(frame_buffer) < SEQ_LEN:
+                continue
+
+            sequence = np.stack(frame_buffer)
+
+            X = torch.tensor(sequence, dtype=torch.float32).unsqueeze(0).to(device)
+
+            with torch.no_grad():
+                logits = model(X)
+                probs = F.softmax(logits, dim=1)
+                conf, idx = torch.max(probs, dim=1)
+
+            pred_idx = int(idx.item())
+            conf = float(conf.item())
+            label = LABELS[pred_idx]
+
+            await ws.send_text(json.dumps({
+                "prediction": label,
+                "confidence": conf
+            }))
+
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
+    except Exception as e:
+        print("WebSocket Error:", e)
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

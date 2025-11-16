@@ -1,0 +1,5 @@
+torch
+fastapi
+uvicorn
+pillow
+mediapipe

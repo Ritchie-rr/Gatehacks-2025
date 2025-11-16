@@ -10,3 +10,4 @@ tensorflow
 torch
 torchvision
 torchaudio
+scikit-learn

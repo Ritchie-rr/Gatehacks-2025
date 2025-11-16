@@ -13,7 +13,7 @@ record_dir = os.path.join("recordings", gesture_name)
 os.makedirs(record_dir, exist_ok=True)
 
 # Replace 1 with your OBS Virtual Camera index
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(1)
 if not cap.isOpened():
     print("Cannot open OBS Virtual Camera")
     exit()

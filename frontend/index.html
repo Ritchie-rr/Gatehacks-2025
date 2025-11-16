@@ -9,50 +9,109 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI";
-            background: #1a1a1a;
-            color: #f9fafb;
+            background: #0f172a;
+            color: #f1f5f9;
             height: 100vh;
             overflow: hidden;
         }
 
         .video-call-container {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1.6fr 1fr;
             height: 100vh;
             gap: 2px;
-            background: #000;
         }
 
-        .video-panel {
+        /* LEFT PANEL: LIVE CAMERA */
+        #my-panel {
             position: relative;
-            background: #2d2d2d;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            background: #000;
+            border-radius: 20px;
         }
 
-        /* My Video (Left Side) */
+        /* THICK BORDER MATCHING RIGHT PANEL BACKGROUND */
+        #my-panel::before {
+            content: "";
+            position: absolute;
+            inset: -10px;          /* thick outline */
+            border-radius: 28px;   /* smooth corners */
+            padding: 10px;
+
+            /* SAME COLORS AS RIGHT PANEL BACKGROUND */
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+
+            -webkit-mask:
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+                    mask-composite: exclude;
+
+            pointer-events: none;
+            z-index: 3;
+        }
+
         #my-video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* Mirror effect */
+            transform: scaleX(-1);
+            border-radius: 20px;
         }
 
-        /* Other Person's Video (Right Side) - Static Image */
-        #other-video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        /* RIGHT PANEL: TRANSLATOR UI */
+        #translator-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            padding: 40px;
+            border-radius: 20px;
+            border-left: 2px solid rgba(255,255,255,0.05);
         }
 
-        /* Name Tags */
+        #translator-title {
+            font-size: 32px;
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+            letter-spacing: 1.5px;
+
+            background: linear-gradient(135deg, #38bdf8, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #label-text {
+            font-size: 54px;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 16px;
+            min-height: 70px;
+
+            background: linear-gradient(135deg, #38bdf8, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #label-confidence {
+            font-size: 20px;
+            color: #94a3b8;
+            height: 24px;
+            text-align: center;
+        }
+
+        /* Camera Name Tag */
         .name-tag {
             position: absolute;
             bottom: 16px;
             left: 16px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0,0,0,0.7);
             padding: 8px 16px;
             border-radius: 8px;
             font-size: 14px;
@@ -61,73 +120,30 @@
             z-index: 10;
         }
 
-        /* Caption Box on Other Person's Screen */
-        #caption-box {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.85);
-            padding: 24px 32px;
-            border-radius: 12px;
-            min-width: 300px;
-            max-width: 500px;
-            text-align: center;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            border: 2px solid rgba(56, 189, 248, 0.3);
-            display: none;
-            z-index: 20;
-        }
-
-        #caption-box.show {
-            display: block;
-            animation: fadeIn 0.3s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
-            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        }
-
-        #caption-text {
-            font-size: 32px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #38bdf8, #a855f7);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 8px;
-        }
-
-        #caption-confidence {
-            font-size: 14px;
-            color: #94a3b8;
-        }
-
-        /* Control Panel on My Screen */
+        /* Control Panel */
         #control-panel {
             position: absolute;
             bottom: 16px;
             right: 16px;
-            background: rgba(15, 23, 42, 0.95);
+            background: rgba(15,23,42,0.92);
             padding: 16px;
             border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            z-index: 10;
+            border: 1px solid rgba(56,189,248,0.3);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            z-index: 20;
         }
 
         .btn {
+            width: 100%;
             padding: 12px 24px;
             border-radius: 8px;
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             border: none;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             color: white;
-            cursor: pointer;
             font-size: 14px;
             font-weight: 600;
-            transition: all 0.2s;
-            display: block;
-            width: 100%;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
 
         .btn:hover:not(:disabled) {
@@ -135,15 +151,11 @@
             transform: translateY(-1px);
         }
 
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .btn-recording {
             background: linear-gradient(135deg, #ef4444, #dc2626);
-            animation: pulse 1.5s ease-in-out infinite;
+            animation: pulse 1.8s ease-in-out infinite;
         }
 
         @keyframes pulse {
@@ -152,60 +164,48 @@
         }
 
         #recording-status {
-            text-align: center;
             margin-top: 8px;
+            text-align: center;
             font-size: 12px;
-            color: #94a3b8;
             display: none;
         }
 
         #recording-status.active {
             display: block;
             color: #fca5a5;
-            font-weight: 600;
         }
 
+        /* WS Connection Indicator */
         .status-indicator {
             position: absolute;
             top: 16px;
             right: 16px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0,0,0,0.7);
             padding: 6px 12px;
             border-radius: 6px;
             font-size: 11px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            z-index: 10;
+            gap: 8px;
+            z-index: 20;
         }
 
-        .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #4b5563;
-        }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot.ok { background: #22c55e; }
+        .dot.err { background: #ef4444; }
 
-        .dot.ok {
-            background: #22c55e;
-            box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
-        }
-
-        .dot.err {
-            background: #ef4444;
-            box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
-        }
     </style>
 </head>
 
 <body>
     <div class="video-call-container">
-        <!-- Left Panel: My Video -->
-        <div class="video-panel" id="my-panel">
+
+        <!-- LEFT: CAMERA -->
+        <div id="my-panel">
             <video id="my-video" autoplay playsinline muted></video>
-            
+
             <div class="name-tag">You</div>
-            
+
             <div class="status-indicator">
                 <div class="dot" id="dot-status"></div>
                 <span id="status-text">Connecting...</span>
@@ -217,23 +217,16 @@
             </div>
         </div>
 
-        <!-- Right Panel: Other Person -->
-    <div class="video-panel" id="other-panel">  
-    
-        <!-- Static generated face -->
-        <img id="other-video" 
-            src="man.png"
-            alt="Other Person">
+        <!-- RIGHT: TRANSLATOR -->
+        <div id="translator-panel">
 
-        <!-- Name tag -->
-        <div class="name-tag">Robert Townson</div>
+            <div id="translator-title">ASL Translator</div>
 
-            <!-- Caption Box -->
-            <div id="caption-box">
-                <div id="caption-text">Hello</div>
-                <div id="caption-confidence">95% confidence</div>
-            </div>
+            <div id="label-text">Waiting...</div>
+            <div id="label-confidence"></div>
+
         </div>
+
     </div>
 
     <script>
@@ -243,245 +236,157 @@
         let recordedChunks = [];
 
         const myVideo = document.getElementById("my-video");
+        const labelText = document.getElementById("label-text");
+        const labelConfidence = document.getElementById("label-confidence");
+
         const btnRecord = document.getElementById("btn-record");
         const recordingStatus = document.getElementById("recording-status");
         const recordingTimer = document.getElementById("recording-timer");
-        const captionBox = document.getElementById("caption-box");
-        const captionText = document.getElementById("caption-text");
-        const captionConfidence = document.getElementById("caption-confidence");
+
         const dotStatus = document.getElementById("dot-status");
         const statusText = document.getElementById("status-text");
 
-        // ---------- Camera ----------
+        /* ---------- CAMERA ---------- */
         async function initCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { 
-                        width: { ideal: 1280 }, 
-                        height: { ideal: 720 },
-                        facingMode: "user"
-                    },
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
                     audio: false
                 });
+
                 myVideo.srcObject = stream;
-                console.log("Camera ready");
+
             } catch (err) {
-                console.error("Camera error:", err);
-                alert("Camera access required. Please allow and refresh.");
+                alert("Camera access required.");
             }
         }
 
-        // ---------- WebSocket ----------
+        /* ---------- WEBSOCKET ---------- */
         function initWebSocket() {
-            const wsUrl = "ws://localhost:8000/video";
-            
-            try {
-                ws = new WebSocket(wsUrl);
-            } catch (err) {
-                console.error("WebSocket error:", err);
-                updateStatus(false);
-                return;
-            }
+            const url = "ws://localhost:8000/video";
 
-            ws.onopen = () => {
-                console.log("WebSocket connected");
-                updateStatus(true);
-            };
+            try { ws = new WebSocket(url); }
+            catch { return updateStatus(false); }
 
-            ws.onclose = () => {
-                console.log("WebSocket closed");
-                updateStatus(false);
-                setTimeout(() => initWebSocket(), 3000);
-            };
+            ws.onopen = () => updateStatus(true);
+            ws.onerror = () => updateStatus(false);
+            ws.onclose = () => { updateStatus(false); setTimeout(initWebSocket, 2000); };
 
-            ws.onerror = () => {
-                console.error("WebSocket error");
-                updateStatus(false);
-            };
-
-            ws.onmessage = (event) => {
-                console.log("Received from backend");
-                
-                try {
-                    const data = JSON.parse(event.data);
-                    displayCaption(data);
-                } catch (err) {
-                    console.error("Parse error:", err);
-                }
+            ws.onmessage = (ev) => {
+                const data = JSON.parse(ev.data);
+                displayCaption(data);
             };
         }
 
         function updateStatus(connected) {
-            dotStatus.classList.remove("ok", "err");
-            
             if (connected) {
                 dotStatus.classList.add("ok");
+                dotStatus.classList.remove("err");
                 statusText.textContent = "Connected";
             } else {
+                dotStatus.classList.remove("ok");
                 dotStatus.classList.add("err");
                 statusText.textContent = "Disconnected";
             }
         }
 
-        // ---------- Recording (2 seconds) ----------
-        let recordStartTime = null;
+        /* ---------- RECORDING ---------- */
+        let recordStartTime = 0;
         let timerInterval = null;
 
-        async function startRecording() {
+        function startRecording() {
             if (isRecording) return;
 
-            if (!myVideo.srcObject) {
-                alert("Camera not ready");
-                return;
-            }
+            if (!myVideo.srcObject) return alert("Camera not ready.");
+            if (!ws || ws.readyState !== WebSocket.OPEN) return alert("Backend not connected.");
 
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                alert("Backend not connected");
-                return;
-            }
-
-            console.log("Starting 2-second recording...");
             isRecording = true;
             recordedChunks = [];
-            
+
             btnRecord.disabled = true;
             btnRecord.classList.add("btn-recording");
             btnRecord.textContent = "🔴 Recording...";
             recordingStatus.classList.add("active");
-            recordStartTime = Date.now();
 
-            // Start timer display
+            recordStartTime = Date.now();
             timerInterval = setInterval(() => {
-                const elapsed = (Date.now() - recordStartTime) / 1000;
-                recordingTimer.textContent = elapsed.toFixed(1);
+                const sec = ((Date.now() - recordStartTime) / 1000).toFixed(1);
+                recordingTimer.textContent = sec;
             }, 100);
 
-            try {
-                const stream = myVideo.srcObject;
-                const options = { mimeType: 'video/webm' };
-                
-                mediaRecorder = new MediaRecorder(stream, options);
-                
-                mediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        recordedChunks.push(event.data);
-                    }
-                };
+            const stream = myVideo.srcObject;
+            mediaRecorder = new MediaRecorder(stream, { mimeType: "video/webm" });
 
-                mediaRecorder.onstop = () => {
-                    console.log("Recording stopped, processing...");
-                    processRecording();
-                };
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = processRecording;
 
-                mediaRecorder.start();
-                console.log("MediaRecorder started");
-
-                // Stop after 2 seconds
-                setTimeout(() => {
-                    stopRecording();
-                }, 2000);
-
-            } catch (err) {
-                console.error("MediaRecorder error:", err);
-                alert("Recording failed: " + err.message);
-                resetUI();
-            }
+            mediaRecorder.start();
+            setTimeout(stopRecording, 2000);
         }
 
         function stopRecording() {
-            if (!isRecording) return;
-            
-            console.log("Stopping recording...");
-            clearInterval(timerInterval);
-            
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            if (mediaRecorder && mediaRecorder.state !== "inactive")
                 mediaRecorder.stop();
-            }
-            
+
+            clearInterval(timerInterval);
             isRecording = false;
+
             btnRecord.classList.remove("btn-recording");
             btnRecord.textContent = "🎥 Sign to Translate (2s)";
             recordingStatus.classList.remove("active");
         }
 
-        async function processRecording() {
-            if (recordedChunks.length === 0) {
-                console.error("No video data");
+        function processRecording() {
+            if (!recordedChunks.length) {
                 btnRecord.disabled = false;
                 return;
             }
 
-            const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
-            console.log("Video blob:", videoBlob.size, "bytes");
-
+            const blob = new Blob(recordedChunks, { type: "video/webm" });
             const reader = new FileReader();
+
             reader.onload = () => {
-                const base64Video = reader.result.split(',')[1];
-                
-                console.log("Sending to backend...");
-                
+                const base64 = reader.result.split(",")[1];
                 ws.send(JSON.stringify({
-                    video: base64Video,
-                    format: 'webm',
-                    size: videoBlob.size
+                    video: base64,
+                    format: "webm",
+                    size: blob.size
                 }));
             };
-            
-            reader.onerror = (err) => {
-                console.error("FileReader error:", err);
-                btnRecord.disabled = false;
-            };
-            
-            reader.readAsDataURL(videoBlob);
-        }
 
-        function resetUI() {
-            isRecording = false;
-            btnRecord.disabled = false;
-            btnRecord.classList.remove("btn-recording");
-            btnRecord.textContent = "🎥 Sign to Translate (2s)";
-            recordingStatus.classList.remove("active");
-            clearInterval(timerInterval);
+            reader.readAsDataURL(blob);
         }
 
         btnRecord.addEventListener("click", startRecording);
 
-        // ---------- Display Caption ----------
+        /* ---------- CAPTION LOGIC ---------- */
         function displayCaption(data) {
-            console.log("Displaying caption:", data);
-            
             if (data.error) {
-                console.error("Error:", data.error);
+                labelText.textContent = "Error";
+                labelConfidence.textContent = "";
                 btnRecord.disabled = false;
                 return;
             }
 
             const confidence = Math.round((data.confidence || 0) * 100);
-            
-            // Only show if confidence >= 80%
-            if (confidence >= 80) {
-                captionText.textContent = data.prediction || "Unknown";
-                captionConfidence.textContent = `${confidence}% confidence`;
-                
-                captionBox.classList.add("show");
-                
-                // Hide after 3 seconds
-                setTimeout(() => {
-                    captionBox.classList.remove("show");
-                }, 3000);
-            } else {
-                console.log("Confidence too low:", confidence + "%");
+
+            if (confidence < 70) {
+                labelText.textContent = "Try again";
+                labelConfidence.textContent = "";
+                btnRecord.disabled = false;
+                return;
             }
-            
+
+            labelText.textContent = data.prediction || "Unknown";
+            labelConfidence.textContent = `${confidence}% confidence`;
+
             btnRecord.disabled = false;
         }
 
-        // ---------- Initialize ----------
-        window.onload = async () => {
-            console.log("Initializing...");
-            await initCamera();
+        /* ---------- INIT ---------- */
+        window.onload = () => {
+            initCamera();
             initWebSocket();
-            console.log("Ready");
         };
     </script>
 </body>

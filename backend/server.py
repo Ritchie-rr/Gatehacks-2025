@@ -15,6 +15,8 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
+from model import ASL_BiLSTM
+
 # -------------------------------------------------
 # Device
 # -------------------------------------------------
@@ -26,39 +28,13 @@ device = torch.device(
 
 print(f"Using device: {device}")
 
-# -------------------------------------------------
-# TODO: YOUR MODEL CLASS HERE
-# -------------------------------------------------
-# Replace this stub with your actual BiLSTM model class.
-# Make sure its __init__ signature matches how you trained it.
-class ASLBiLSTM(torch.nn.Module):
-    def __init__(self, input_dim: int = 222, hidden_dim: int = 256,
-                 num_layers: int = 2, num_classes: int = 6):
-        super().__init__()
-        self.lstm = torch.nn.LSTM(
-            input_size=input_dim,
-            hidden_size=hidden_dim,
-            num_layers=num_layers,
-            batch_first=True,
-            bidirectional=True,
-            dropout=0.2
-        )
-        self.fc = torch.nn.Linear(hidden_dim * 2, num_classes)
-
-    def forward(self, x):
-        # x: (B, T, F)
-        out, _ = self.lstm(x)        # (B, T, 2H)
-        pooled = out.mean(dim=1)     # temporal average pooling
-        logits = self.fc(pooled)     # (B, C)
-        return logits
-
 
 # -------------------------------------------------
 # TODO: labels in the same order as training
 # -------------------------------------------------
 # For example, if you trained on:
 # 0:"A", 1:"B", 2:"C", 3:"D", 4:"E", 5:"F"
-LABELS: List[str] = ["A", "B", "C", "D", "E", "F"]  # <-- change to your labels
+LABELS: List[str] = []  # <-- change to your labels
 
 
 # -------------------------------------------------
@@ -66,12 +42,7 @@ LABELS: List[str] = ["A", "B", "C", "D", "E", "F"]  # <-- change to your labels
 # -------------------------------------------------
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "best.pt")
 
-model = ASLBiLSTM(
-    input_dim=222,
-    hidden_dim=256,
-    num_layers=2,
-    num_classes=len(LABELS),
-).to(device)
+model = ASL_BiLSTM().to(device)
 
 if os.path.exists(MODEL_PATH):
     state = torch.load(MODEL_PATH, map_location=device)

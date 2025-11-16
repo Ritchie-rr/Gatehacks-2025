@@ -118,6 +118,6 @@ if __name__ == "__main__":
 
     cfm = ConfusionMatrixDisplay(
         confusion_matrix=val_metrics["confusion_matrix"],
-        display_labels=list(range(len(val_metrics["confusion_matrix"])))
+        display_labels=[0, 1, 2, 3, 4, 5]
     )
     cfm.plot()

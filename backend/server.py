@@ -2,20 +2,25 @@
 import base64
 import io
 import os
-from typing import List, Optional
+import json
+from collections import deque
 
 import numpy as np
 from PIL import Image
 
 import torch
 import torch.nn.functional as F
+import cv2
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from model import ASL_BiLSTM
+# Import model
+from src.model import ASL_BiLSTM
+
+# Import preprocess globals (hands, face, landmark indices)
+import scripts.preprocess_media as preprocess
 
 # -------------------------------------------------
 # Device
@@ -28,136 +33,135 @@ device = torch.device(
 
 print(f"Using device: {device}")
 
+LABELS = ['hello', 'how are you', 'nice to meet you', 'please', 'sorry', 'thank you']
+
+SEQ_LEN = 60
+FEATURE_DIM = 222
+
+frame_buffer = deque(maxlen=SEQ_LEN)
 
 # -------------------------------------------------
-# TODO: labels in the same order as training
+# Load model
 # -------------------------------------------------
-# For example, if you trained on:
-# 0:"A", 1:"B", 2:"C", 3:"D", 4:"E", 5:"F"
-LABELS: List[str] = []  # <-- change to your labels
+MODEL_PATH = os.path.join(os.path.dirname(__file__),"../src/best.pt")
 
-
-# -------------------------------------------------
-# Load model + weights
-# -------------------------------------------------
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "best.pt")
-
-model = ASL_BiLSTM().to(device)
+model = ASL_BiLSTM()
 
 if os.path.exists(MODEL_PATH):
     state = torch.load(MODEL_PATH, map_location=device)
     model.load_state_dict(state)
-    model.eval()
     print("Loaded model weights from best.pt")
 else:
-    print("WARNING: best.pt not found. Model will use random weights.")
+    print("WARNING: best.pt not found — using random weights.")
+
+model.to(device)
+model.eval()
+
+# -------------------------------------------------
+# Frame → keypoints (222)
+# -------------------------------------------------
+def extract_keypoints_from_frame(frame_bgr: np.ndarray):
+
+    rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+
+    hand_results = preprocess.hands.process(rgb)
+    face_results = preprocess.face.process(rgb)
+
+    keypoints = []
+
+    if hand_results.multi_hand_landmarks:
+        hand = hand_results.multi_hand_landmarks[0]
+        for lm in hand.landmark:
+            keypoints.extend([lm.x, lm.y, lm.z])
+    else:
+        keypoints.extend([0.0] * 63)
+
+    if face_results.multi_face_landmarks:
+        face_lm = face_results.multi_face_landmarks[0]
+        for idx in preprocess.SELECTED_FACE_LANDMARKS:
+            lm = face_lm.landmark[idx]
+            keypoints.extend([lm.x, lm.y, lm.z])
+    else:
+        keypoints.extend([0.0] * 138)
+
+    if face_results.multi_face_landmarks:
+        face_lm = face_results.multi_face_landmarks[0]
+        for idx in preprocess.HEAD_IDX:
+            lm = face_lm.landmark[idx]
+            keypoints.extend([lm.x, lm.y, lm.z])
+    else:
+        keypoints.extend([0.0] * 21)
+
+    return np.array(keypoints, dtype=np.float32)
 
 
 # -------------------------------------------------
-# TODO: Frame → keypoints → sequence tensor
-# -------------------------------------------------
-# You must implement this using your MediaPipe + preprocessing pipeline
-# so that it returns a tensor of shape (T=60, F=222) in float32.
-def preprocess_frame_to_sequence(img: Image.Image) -> Optional[torch.Tensor]:
-    """
-    img: PIL Image (RGB)
-    returns: torch.FloatTensor of shape (60, 222) or None if no hand detected
-    """
-    # ----- EXAMPLE DUMMY IMPLEMENTATION -----
-    # Replace everything in this function with your real keypoint code.
-
-    # Example: resize & flatten just to have something structurally valid
-    img = img.resize((64, 64))
-    arr = np.array(img).astype(np.float32) / 255.0  # (64,64,3)
-    flat = arr.reshape(-1)                          # (12288,)
-
-    # For demo purposes, pad/truncate to 60*222 = 13320
-    target_len = 60 * 222
-    if flat.shape[0] < target_len:
-        pad = np.zeros(target_len - flat.shape[0], dtype=np.float32)
-        flat = np.concatenate([flat, pad])
-    elif flat.shape[0] > target_len:
-        flat = flat[:target_len]
-
-    seq = flat.reshape(60, 222)  # (T,F)
-
-    # Normalize per-sample
-    mean = seq.mean()
-    std = seq.std() + 1e-6
-    seq = (seq - mean) / std
-
-    return torch.from_numpy(seq)  # (60,222)
-
-
-# -------------------------------------------------
-# FastAPI app + CORS
+# FastAPI + CORS
 # -------------------------------------------------
 app = FastAPI()
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],           # you can lock this down later
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
 @app.get("/")
 async def root():
-    return {"status": "ok", "message": "ASL BiLSTM backend running"}
-
+    return {"status": "ok", "message": "ASL backend running"}
 
 # -------------------------------------------------
-# /video WebSocket endpoint
+# WebSocket endpoint
 # -------------------------------------------------
 @app.websocket("/video")
 async def video_ws(ws: WebSocket):
     await ws.accept()
-    print("WebSocket client connected")
+    print("WebSocket connected")
 
     try:
         while True:
             msg = await ws.receive_text()
-            # Expect JSON: {"frame": "data:image/jpeg;base64,...", "timestamp": ...}
-            import json
             data = json.loads(msg)
-            frame_data_url = data.get("frame")
 
-            if not frame_data_url or not frame_data_url.startswith("data:image"):
+            frame_data_url = data.get("frame")
+            if not frame_data_url:
                 continue
 
-            # Strip header "data:image/jpeg;base64,"
-            header, b64data = frame_data_url.split(",", 1)
+            _, b64data = frame_data_url.split(",", 1)
             img_bytes = base64.b64decode(b64data)
 
-            img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            pil_img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            frame_np = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
 
-            seq = preprocess_frame_to_sequence(img)
-            if seq is None:
-                # no detection, could send a "no hand" message if you want
+            kp = extract_keypoints_from_frame(frame_np)
+            frame_buffer.append(kp)
+
+            if len(frame_buffer) < SEQ_LEN:
                 continue
 
-            seq = seq.to(device=device, dtype=torch.float32).unsqueeze(0)  # (1,60,222)
+            sequence = np.stack(frame_buffer)
+
+            X = torch.tensor(sequence, dtype=torch.float32).unsqueeze(0).to(device)
 
             with torch.no_grad():
-                logits = model(seq)          # (1,C)
+                logits = model(X)
                 probs = F.softmax(logits, dim=1)
-                conf, pred_idx = torch.max(probs, dim=1)
+                conf, idx = torch.max(probs, dim=1)
 
-            pred_idx = int(pred_idx.item())
+            pred_idx = int(idx.item())
             conf = float(conf.item())
             label = LABELS[pred_idx]
 
-            out = {"prediction": label, "confidence": conf}
-            await ws.send_text(json.dumps(out))
+            await ws.send_text(json.dumps({
+                "prediction": label,
+                "confidence": conf
+            }))
 
     except WebSocketDisconnect:
-        print("WebSocket client disconnected")
+        print("WebSocket disconnected")
     except Exception as e:
-        print("WebSocket exception:", e)
+        print("WebSocket Error:", e)
 
 
 if __name__ == "__main__":
-    # Run locally: python server.py
     uvicorn.run(app, host="0.0.0.0", port=8000)

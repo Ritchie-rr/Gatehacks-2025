@@ -28,52 +28,65 @@ hands = mp_hands.Hands(
 
 
 def extract_keypoints_from_video(video_path):
-    cap = cv2.VideoCapture(video_path) #Open the video file for reading
-
+    cap = cv2.VideoCapture(video_path)
+    
+    # Check if video opened successfully
+    if not cap.isOpened():
+        print(f"Error opening video: {video_path}")
+        return None
+    
     sequence = []
-    last_valid = np.zeros(FEATURE_DIM)  # start with zeros
-
+    last_valid = None
+    
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-
+        
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         hand_results = hands.process(rgb)
-
-        keypoints = []
-
-        # ----------------------------------------------------
-        # Hand Landmarks (21 points × 3 x 2(hands) = 126 dims)
-        # ----------------------------------------------------
+        
+        left_hand = np.zeros(63, dtype=np.float32)
+        right_hand = np.zeros(63, dtype=np.float32)
+        
         if hand_results.multi_hand_landmarks:
-            hand = hand_results.multi_hand_landmarks[0]
-
-            for lm in hand.landmark:
-                keypoints.extend([lm.x, lm.y, lm.z])
-
-            keypoints = np.array(keypoints)
-            last_valid = keypoints.copy()  # update last valid
+            for hand_lm, handedness in zip(hand_results.multi_hand_landmarks,
+                                           hand_results.multi_handedness):
+                label = handedness.classification[0].label
+                coords = np.array([[lm.x, lm.y, lm.z] for lm in hand_lm.landmark], 
+                                 dtype=np.float32).flatten()
+                
+                if label == "Left":
+                    left_hand = coords
+                else:
+                    right_hand = coords
+            
+            keypoints = np.concatenate([left_hand, right_hand])
+            last_valid = keypoints.copy()
         else:
-            # No hand → reuse last valid frame
-            keypoints = last_valid.copy()
-
+            # Use last valid or zeros if none exist yet
+            keypoints = last_valid.copy() if last_valid is not None else np.zeros(FEATURE_DIM, dtype=np.float32)
+        
         sequence.append(keypoints)
-
+    
     cap.release()
-    sequence = np.array(sequence)
-
-    num_frames = sequence.shape[0]
-
-    if num_frames >= MAX_FRAMES:
+    
+    # Check for empty sequence
+    if len(sequence) == 0:
+        return None
+    
+    sequence = np.array(sequence, dtype=np.float32)
+    
+    # Normalize sequence length
+    if sequence.shape[0] >= MAX_FRAMES:
         sequence = sequence[:MAX_FRAMES]
     else:
-        pad_len = MAX_FRAMES - num_frames
-        # pad using last frame, NOT zeros
+        pad_len = MAX_FRAMES - sequence.shape[0]
         padding = np.tile(sequence[-1], (pad_len, 1))
         sequence = np.vstack([sequence, padding])
-
+    
     return sequence
+
 
 def process_all_videos():
     # Ensure output directories exist

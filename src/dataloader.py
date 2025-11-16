@@ -13,8 +13,66 @@ def time_warp(seq, warp_factor_range=(0.8, 1.2), max_frames=60):
     if len(seq) > max_frames:
         seq = seq[:max_frames]
     elif len(seq) < max_frames:
-        pad = np.zeros((max_frames - len(seq), seq.shape[1]))
+        pad = np.tile(seq[-1], (max_frames - len(seq), 1))
         seq = np.vstack([seq, pad])
+
+    return seq
+
+
+def jitter(seq, sigma=0.01):
+    noise = np.random.normal(0, sigma, seq.shape)
+    return seq + noise
+
+
+def scale(seq, scale_range=(0.9, 1.1)):
+    s = np.random.uniform(*scale_range)
+    return seq * s
+
+
+def translate(seq, shift_range=(-0.05, 0.05)):
+    shift = np.random.uniform(*shift_range, size=(1, seq.shape[1]))
+    return seq + shift
+
+
+def frame_dropout(seq, drop_prob=0.10):
+    mask = np.random.rand(seq.shape[0]) > drop_prob
+    if mask.sum() == 0:
+        return seq
+    seq = seq[mask]
+
+    if len(seq) < 60:
+        pad = np.tile(seq[-1], (60 - len(seq), 1))
+        seq = np.vstack([seq, pad])
+    return seq
+
+def landmark_dropout(seq, drop_prob=0.05):
+    mask = np.random.rand(*seq.shape) > drop_prob
+    return seq * mask
+
+def augment(seq):
+    # 50% speed variation
+    if np.random.rand() < 0.5:
+        seq = time_warp(seq)
+
+    # 50% jitter/noise
+    if np.random.rand() < 0.5:
+        seq = jitter(seq)
+
+    # 30% scale
+    if np.random.rand() < 0.3:
+        seq = scale(seq)
+
+    # 30% translate
+    if np.random.rand() < 0.3:
+        seq = translate(seq)
+
+    # 20% frame dropout
+    if np.random.rand() < 0.2:
+        seq = frame_dropout(seq)
+
+    # 10% landmark occlusion
+    if np.random.rand() < 0.1:
+        seq = landmark_dropout(seq)
 
     return seq
 
@@ -34,7 +92,6 @@ class ASLDataset(Dataset):
         unique = sorted(set(raw_labels))
         self.label_to_idx = {lbl: i for i, lbl in enumerate(unique)}
         self.targets = [self.label_to_idx[lbl] for lbl in raw_labels]
-        print("Label → Index mapping:", self.label_to_idx)
 
     def __len__(self):
         return len(self.samples)
@@ -44,7 +101,7 @@ class ASLDataset(Dataset):
         x = np.load(os.path.join(self.keypoint_dir, base + ".npy")).astype(np.float32)
 
         if self.augment and np.random.rand() < 0.5:
-            x = time_warp(x)
+            x = augment(x)
 
         x = torch.from_numpy(x).float()
         y = torch.tensor(self.targets[idx], dtype=torch.long)

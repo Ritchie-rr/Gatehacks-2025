@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ASL + Jitsi Live Recognition</title>
+    <title>ASL + Jitsi</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- Jitsi iFrame API -->
@@ -33,24 +33,11 @@
             font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
             color: #9ca3af; margin-bottom: 8px;
         }
-        #asl-letter {
-            font-size: 32px; font-weight: 700; line-height: 1.2;
+        #asl-result {
+            font-size: 28px; font-weight: 700; line-height: 1.2;
             background: linear-gradient(135deg, #38bdf8, #a855f7);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             text-align: center; min-height: 40px;
-        }
-        #asl-confidence {
-            font-size: 13px; color: #e5e7eb; text-align: center; margin-top: 6px;
-            font-weight: 500;
-        }
-        .confidence-bar {
-            margin-top: 8px; background: #1f2937;
-            border-radius: 999px; height: 6px; overflow: hidden;
-        }
-        .confidence-fill {
-            height: 100%; width: 0%;
-            background: linear-gradient(90deg, #22c55e, #facc15);
-            transition: width 0.3s ease-out;
         }
 
         .sidebar {
@@ -69,45 +56,24 @@
             color: #9ca3af; margin-bottom: 12px; font-weight: 600;
         }
 
-        #word-display {
-            font-size: 24px; font-weight: 600; letter-spacing: 1px; 
-            min-height: 60px; color: #f9fafb;
-            padding: 12px;
-            background: #020617;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-        #word-display.empty {
-            font-size: 14px; letter-spacing: 0; font-style: italic; 
-            color: #6b7280; font-weight: 400;
-        }
-
-        .btn-row { display: flex; gap: 8px; margin-top: 12px; }
         .btn {
-            flex: 1; padding: 10px 14px; border-radius: 8px;
-            background: #1e293b; border: 1px solid #334155;
-            color: #e5e7eb; cursor: pointer; font-size: 13px;
-            font-weight: 500;
+            width: 100%; padding: 12px 16px; border-radius: 8px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border: none;
+            color: white;
+            cursor: pointer; 
+            font-size: 14px;
+            font-weight: 600;
             transition: all 0.2s;
         }
-        .btn:hover:not(:disabled) { 
-            background: #334155; 
-            border-color: #475569;
+        .btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            transform: translateY(-1px);
         }
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-            border: none;
-            color: white;
-        }
-        .btn-primary:hover:not(:disabled) {
-            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            transform: none;
         }
         .btn-recording {
             background: linear-gradient(135deg, #ef4444, #dc2626);
@@ -118,26 +84,22 @@
             50% { opacity: 0.7; }
         }
 
-        .history-list { max-height: 240px; overflow-y: auto; }
-        .history-item {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 12px; border-radius: 8px; font-size: 13px;
-            background: #020617; border: 1px solid #1f2937; 
-            margin-bottom: 6px;
-        }
-        .history-letter { 
-            font-size: 16px; font-weight: 600; 
-            color: #38bdf8; 
-            flex: 1;
-        }
-        .history-meta {
-            text-align: right;
-            font-size: 11px;
-            color: #9ca3af;
-        }
-        .history-conf {
+        #recording-status {
+            text-align: center;
+            padding: 10px;
+            margin-top: 12px;
+            border-radius: 6px;
+            font-size: 13px;
             font-weight: 600;
-            color: #22c55e;
+            background: #1e293b;
+            color: #94a3b8;
+            display: none;
+        }
+        #recording-status.active {
+            display: block;
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
         }
 
         .status-item {
@@ -157,22 +119,22 @@
         .dot.ok { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
         .dot.err { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
 
-        #recording-status {
+        .result-display {
+            background: #020617;
+            border-radius: 8px;
+            padding: 16px;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
-            padding: 8px;
-            margin-top: 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            background: #1e293b;
-            color: #94a3b8;
-            display: none;
+            font-size: 16px;
+            color: #f9fafb;
         }
-        #recording-status.active {
-            display: block;
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+        .result-display.empty {
+            font-style: italic;
+            color: #6b7280;
+            font-size: 14px;
         }
 
         .info-box {
@@ -182,10 +144,7 @@
             padding: 12px;
             font-size: 12px;
             color: #93c5fd;
-            line-height: 1.5;
-        }
-        .info-box strong {
-            color: #60a5fa;
+            line-height: 1.6;
         }
     </style>
 </head>
@@ -196,51 +155,30 @@
         <div id="meet"></div>
 
         <div id="asl-overlay">
-            <div id="asl-overlay-title">ASL CAPTION</div>
-            <div id="asl-letter">Ready</div>
-            <div id="asl-confidence">-</div>
-            <div class="confidence-bar"><div class="confidence-fill" id="conf-fill"></div></div>
+            <div id="asl-overlay-title">ASL RESULT</div>
+            <div id="asl-result">Ready</div>
         </div>
 
         <video id="asl-cam" autoplay playsinline muted style="display:none;"></video>
-        <canvas id="asl-canvas" style="display:none;"></canvas>
     </div>
 
     <div class="sidebar">
         <div class="card">
-            <h2>Sign to Translate</h2>
+            <h2>Record ASL Sign</h2>
             
             <div class="info-box">
-                <strong>How it works:</strong><br>
-                • Click "Record Sign" below<br>
-                • Perform your ASL gesture for 2 seconds<br>
-                • The caption will appear on the other person's screen<br>
-                • Must be 80%+ confident to show
+                Records a 2-second MP4 video of your ASL gesture and sends it to your backend for processing.
             </div>
+
+            <button class="btn" id="btn-record">🎥 Record Sign (2s)</button>
 
             <div id="recording-status">Recording: <span id="recording-timer">0.0</span>s</div>
-
-            <div class="btn-row">
-                <button class="btn btn-primary" id="btn-record">🎥 Record Sign (2s)</button>
-            </div>
         </div>
 
         <div class="card">
-            <h2>Last Translation</h2>
-            <div id="word-display" class="empty">Not yet translated</div>
-
-            <div class="btn-row">
-                <button class="btn" id="btn-clear">Clear</button>
-                <button class="btn" id="btn-copy">Copy Text</button>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Recent Translations</h2>
-            <div id="history-list" class="history-list">
-                <div style="font-size:12px;color:#6b7280;text-align:center;padding:16px;">
-                    No translations yet
-                </div>
+            <h2>Backend Response</h2>
+            <div id="result-display" class="result-display empty">
+                Waiting for result...
             </div>
         </div>
 
@@ -254,10 +192,6 @@
                 <div class="dot" id="dot-ws"></div>
                 <span id="status-ws">Backend: Connecting...</span>
             </div>
-            <div class="status-item">
-                <div class="dot" id="dot-model"></div>
-                <span id="status-model">Model: Waiting...</span>
-            </div>
         </div>
     </div>
 </div>
@@ -265,27 +199,19 @@
 <script>
     let ws = null;
     let jitsiApi = null;
-    let word = "";
-    let history = [];
-    let awaitingPrediction = false;
     let isRecording = false;
+    let mediaRecorder = null;
+    let recordedChunks = [];
 
     const aslCam = document.getElementById("asl-cam");
-    const aslCanvas = document.getElementById("asl-canvas");
-    const aslCtx = aslCanvas.getContext("2d");
 
-    const letterEl = document.getElementById("asl-letter");
-    const confTextEl = document.getElementById("asl-confidence");
-    const confFillEl = document.getElementById("conf-fill");
-    const wordEl = document.getElementById("word-display");
-    const historyEl = document.getElementById("history-list");
+    const resultOverlay = document.getElementById("asl-result");
+    const resultDisplay = document.getElementById("result-display");
 
     const dotCamera = document.getElementById("dot-camera");
     const dotWs = document.getElementById("dot-ws");
-    const dotModel = document.getElementById("dot-model");
     const statusCamera = document.getElementById("status-camera");
     const statusWs = document.getElementById("status-ws");
-    const statusModel = document.getElementById("status-model");
 
     const btnRecord = document.getElementById("btn-record");
     const recordingStatus = document.getElementById("recording-status");
@@ -295,7 +221,7 @@
     function initJitsi() {
         try {
             jitsiApi = new JitsiMeetExternalAPI("meet.jit.si", {
-                roomName: "ASLRoomDemo2025_" + Math.random().toString(36).substr(2, 9),
+                roomName: "ASLRoom_" + Math.random().toString(36).substr(2, 9),
                 parentNode: document.querySelector('#meet'),
                 width: "100%", 
                 height: "100%",
@@ -305,19 +231,11 @@
                 },
                 interfaceConfigOverwrite: { 
                     SHOW_JITSI_WATERMARK: false,
-                    DISPLAY_WELCOME_PAGE_CONTENT: false,
-                    TOOLBAR_BUTTONS: [
-                        'microphone', 'camera', 'closedcaptions', 'desktop', 
-                        'fullscreen', 'fodeviceselection', 'hangup', 
-                        'chat', 'settings', 'videoquality', 'filmstrip',
-                        'tileview', 'mute-everyone'
-                    ],
                 }
             });
-
             console.log("Jitsi initialized");
         } catch (err) {
-            console.error("Jitsi initialization error:", err);
+            console.error("Jitsi error:", err);
         }
     }
 
@@ -343,12 +261,12 @@
             
             dotCamera.classList.add("ok");
             statusCamera.textContent = "Camera: Ready";
-            console.log("Camera initialized successfully");
+            console.log("Camera ready");
         } catch (err) {
             dotCamera.classList.add("err");
-            statusCamera.textContent = "Camera: Error - " + err.message;
+            statusCamera.textContent = "Camera: Error";
             console.error("Camera error:", err);
-            alert("Camera access denied. Please allow camera access and refresh.");
+            alert("Camera access required. Please allow and refresh.");
         }
     }
 
@@ -358,312 +276,218 @@
         
         try {
             ws = new WebSocket(wsUrl);
+            ws.binaryType = 'arraybuffer';  // Important for receiving binary responses
         } catch (err) {
-            console.error("WebSocket creation error:", err);
-            updateWSStatus("error", "Failed to create WebSocket");
+            console.error("WebSocket error:", err);
+            updateWSStatus(false);
             return;
         }
 
         ws.onopen = () => {
             console.log("WebSocket connected");
-            updateWSStatus("connected");
+            updateWSStatus(true);
         };
 
-        ws.onclose = (event) => {
-            console.log("WebSocket closed:", event.code, event.reason);
-            updateWSStatus("disconnected");
-            
-            setTimeout(() => {
-                console.log("Attempting to reconnect...");
-                initWebSocket();
-            }, 3000);
+        ws.onclose = () => {
+            console.log("WebSocket closed");
+            updateWSStatus(false);
+            setTimeout(() => initWebSocket(), 3000);
         };
 
-        ws.onerror = (error) => {
-            console.error("WebSocket error:", error);
-            updateWSStatus("error", "Connection error");
+        ws.onerror = () => {
+            console.error("WebSocket error");
+            updateWSStatus(false);
         };
 
         ws.onmessage = (event) => {
-            if (!awaitingPrediction) {
-                console.log("Received unexpected message:", event.data);
-                return;
-            }
-            
-            awaitingPrediction = false;
+            console.log("Received from backend");
             
             try {
+                // Try to parse as JSON
                 const data = JSON.parse(event.data);
-                
-                if (data.error) {
-                    console.error("Server error:", data.error);
-                    handleError(data.error);
-                } else if (data.prediction && data.confidence !== undefined) {
-                    handlePrediction(data);
-                }
+                displayResult(data);
             } catch (err) {
-                console.error("Error parsing message:", err);
-                handleError("Failed to parse server response");
+                // If not JSON, display as text
+                displayResult({ result: event.data });
             }
         };
     }
 
-    function updateWSStatus(status, message = "") {
+    function updateWSStatus(connected) {
         dotWs.classList.remove("ok", "err");
-        dotModel.classList.remove("ok", "err");
         
-        if (status === "connected") {
+        if (connected) {
             dotWs.classList.add("ok");
             statusWs.textContent = "Backend: Connected";
-            dotModel.classList.add("ok");
-            statusModel.textContent = "Model: Ready";
-        } else if (status === "disconnected") {
-            statusWs.textContent = "Backend: Disconnected";
-            statusModel.textContent = "Model: Offline";
-        } else if (status === "error") {
+        } else {
             dotWs.classList.add("err");
-            statusWs.textContent = "Backend: " + (message || "Error");
-            dotModel.classList.add("err");
-            statusModel.textContent = "Model: Unavailable";
+            statusWs.textContent = "Backend: Disconnected";
         }
     }
 
-    // ----------------------------------------------------------
-    // Recording Logic - 2 SECONDS = 60 FRAMES
-    // ----------------------------------------------------------
-    let frames = [];
-    let recordInterval = null;
+    // ---------- Recording (2 seconds MP4) ----------
     let recordStartTime = null;
+    let timerInterval = null;
 
-    function startRecording() {
-        if (isRecording) {
-            console.log("Already recording");
-            return;
-        }
+    async function startRecording() {
+        if (isRecording) return;
 
-        if (!aslCam.videoWidth || aslCam.videoWidth === 0) {
-            alert("Camera not ready. Please wait and try again.");
+        if (!aslCam.srcObject) {
+            alert("Camera not ready");
             return;
         }
 
         if (!ws || ws.readyState !== WebSocket.OPEN) {
-            alert("Backend not connected. Please wait for connection.");
+            alert("Backend not connected");
             return;
         }
 
-        console.log("Starting 2-second recording...");
+        console.log("Starting 2-second MP4 recording...");
         isRecording = true;
-        awaitingPrediction = true;
-        frames = [];
+        recordedChunks = [];
         
-        // Update UI
         btnRecord.disabled = true;
         btnRecord.classList.add("btn-recording");
         btnRecord.textContent = "🔴 Recording...";
         recordingStatus.classList.add("active");
         recordStartTime = Date.now();
 
-        // Reset overlay
-        letterEl.textContent = "Recording...";
-        confTextEl.textContent = "-";
-        confFillEl.style.width = "0%";
+        resultOverlay.textContent = "Recording...";
+        resultDisplay.textContent = "Recording in progress...";
+        resultDisplay.classList.add("empty");
 
-        let frameCount = 0;
-        const targetFrames = 60; // 2 seconds at 30fps = 60 frames
-        const intervalMs = 33.33; // ~30fps (1000ms / 30fps)
-
-        recordInterval = setInterval(() => {
+        // Start timer display
+        timerInterval = setInterval(() => {
             const elapsed = (Date.now() - recordStartTime) / 1000;
             recordingTimer.textContent = elapsed.toFixed(1);
+        }, 100);
 
-            if (frameCount >= targetFrames) {
+        try {
+            // Create MediaRecorder with MP4 format
+            const stream = aslCam.srcObject;
+            const options = { mimeType: 'video/webm' }; // webm is more widely supported
+            
+            mediaRecorder = new MediaRecorder(stream, options);
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                console.log("Recording stopped, processing video...");
+                processRecording();
+            };
+
+            mediaRecorder.start();
+            console.log("MediaRecorder started");
+
+            // Stop after 2 seconds
+            setTimeout(() => {
                 stopRecording();
-                return;
-            }
+            }, 2000);
 
-            try {
-                aslCanvas.width = aslCam.videoWidth;
-                aslCanvas.height = aslCam.videoHeight;
-                aslCtx.drawImage(aslCam, 0, 0);
-
-                const frameData = aslCanvas.toDataURL("image/jpeg", 0.7);
-                frames.push(frameData);
-                frameCount++;
-            } catch (err) {
-                console.error("Frame capture error:", err);
-            }
-        }, intervalMs);
+        } catch (err) {
+            console.error("MediaRecorder error:", err);
+            alert("Recording failed: " + err.message);
+            resetUI();
+        }
     }
 
     function stopRecording() {
-        console.log("Stopping recording... Captured", frames.length, "frames");
-        clearInterval(recordInterval);
-        isRecording = false;
+        if (!isRecording) return;
         
-        // Update UI
+        console.log("Stopping recording...");
+        clearInterval(timerInterval);
+        
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+        
+        isRecording = false;
         btnRecord.classList.remove("btn-recording");
         btnRecord.textContent = "🎥 Record Sign (2s)";
         recordingStatus.classList.remove("active");
+    }
 
-        if (frames.length === 0) {
-            console.error("No frames captured");
-            awaitingPrediction = false;
+    async function processRecording() {
+        if (recordedChunks.length === 0) {
+            console.error("No video data recorded");
+            displayResult({ error: "No video data captured" });
             btnRecord.disabled = false;
-            handleError("No frames captured");
             return;
         }
 
-        // Send to backend
-        letterEl.textContent = "Processing...";
-        confTextEl.textContent = "-";
+        // Create blob from recorded chunks
+        const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+        console.log("Video blob created:", videoBlob.size, "bytes");
+
+        // Convert to base64 for sending via WebSocket
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64Video = reader.result.split(',')[1]; // Remove data:video/webm;base64,
+            
+            console.log("Sending video to backend...");
+            resultOverlay.textContent = "Processing...";
+            resultDisplay.textContent = "Sending to backend...";
+            
+            // Send as JSON with base64 video
+            ws.send(JSON.stringify({
+                video: base64Video,
+                format: 'webm',
+                size: videoBlob.size
+            }));
+        };
         
-        try {
-            const payload = JSON.stringify({ frames: frames });
-            console.log("Sending", frames.length, "frames to backend");
-            ws.send(payload);
-        } catch (err) {
-            console.error("Error sending frames:", err);
-            awaitingPrediction = false;
+        reader.onerror = (err) => {
+            console.error("FileReader error:", err);
+            displayResult({ error: "Failed to read video" });
             btnRecord.disabled = false;
-            handleError("Failed to send data");
-        }
+        };
+        
+        reader.readAsDataURL(videoBlob);
+    }
+
+    function resetUI() {
+        isRecording = false;
+        btnRecord.disabled = false;
+        btnRecord.classList.remove("btn-recording");
+        btnRecord.textContent = "🎥 Record Sign (2s)";
+        recordingStatus.classList.remove("active");
+        clearInterval(timerInterval);
     }
 
     btnRecord.addEventListener("click", startRecording);
 
-    // ---------- Prediction Handling ----------
-    function handlePrediction({ prediction, confidence }) {
-        console.log("Received prediction:", prediction, "confidence:", confidence);
+    // ---------- Display Result ----------
+    function displayResult(data) {
+        console.log("Displaying result:", data);
         
-        const confPct = Math.round(confidence * 100);
-        
-        // 80% minimum confidence threshold
-        const MIN_CONFIDENCE = 80;
-        
-        if (confPct < MIN_CONFIDENCE) {
-            console.log("Confidence too low:", confPct + "%");
+        if (data.error) {
+            resultOverlay.textContent = "Error";
+            resultDisplay.textContent = data.error;
+            resultDisplay.classList.add("empty");
+        } else {
+            // Display whatever the backend sends
+            resultOverlay.textContent = data.prediction || "Result";
             
-            // Update overlay with "Try Again" message
-            letterEl.textContent = "Please Sign Again";
-            confTextEl.textContent = confPct + "% (Too Low)";
-            confFillEl.style.width = confPct + "%";
-            
-            // Update main display
-            wordEl.textContent = "Confidence below 80% - Please sign again";
-            wordEl.classList.add("empty");
-            
-            // Add to history with note
-            const now = new Date().toLocaleTimeString();
-            history.unshift({ 
-                prediction: prediction + " ⚠️ Low", 
-                confidence: confPct, 
-                time: now 
-            });
-            if (history.length > 10) history.pop();
-            renderHistory();
-            
-            // Re-enable button
-            btnRecord.disabled = false;
-            return;
+            // Format the result nicely
+            let displayText = JSON.stringify(data, null, 2);
+            resultDisplay.textContent = displayText;
+            resultDisplay.classList.remove("empty");
         }
-
-        // Good confidence - show prediction
-        letterEl.textContent = prediction;
-        confTextEl.textContent = confPct + "%";
-        confFillEl.style.width = confPct + "%";
-
-        // Update main display
-        word = prediction;
-        renderWord();
-
-        // Send caption to Jitsi (appears on other participant's screen)
-        if (jitsiApi) {
-            try {
-                jitsiApi.executeCommand('sendEndpointTextMessage', '', 
-                    `ASL: ${prediction} (${confPct}% confidence)`);
-                console.log("Sent caption to Jitsi:", prediction);
-            } catch (err) {
-                console.error("Error sending caption to Jitsi:", err);
-            }
-        }
-
-        // Add to history
-        const now = new Date().toLocaleTimeString();
-        history.unshift({ prediction, confidence: confPct, time: now });
-        if (history.length > 10) history.pop();
-        renderHistory();
-
-        // Re-enable button
+        
         btnRecord.disabled = false;
     }
 
-    function handleError(message) {
-        letterEl.textContent = "Error";
-        confTextEl.textContent = "-";
-        wordEl.textContent = message + " - Please try again";
-        wordEl.classList.add("empty");
-        btnRecord.disabled = false;
-    }
-
-    function renderWord() {
-        if (!word || word.length === 0) {
-            wordEl.textContent = "Not yet translated";
-            wordEl.classList.add("empty");
-        } else {
-            wordEl.textContent = word;
-            wordEl.classList.remove("empty");
-        }
-    }
-
-    function renderHistory() {
-        if (!history || history.length === 0) {
-            historyEl.innerHTML = `
-                <div style="font-size:12px;color:#6b7280;text-align:center;padding:16px;">
-                    No translations yet
-                </div>`;
-            return;
-        }
-        
-        historyEl.innerHTML = history.map(h => `
-            <div class="history-item">
-                <div class="history-letter">${h.prediction}</div>
-                <div class="history-meta">
-                    <div class="history-conf">${h.confidence}%</div>
-                    <div class="history-time" style="margin-top:2px;">${h.time}</div>
-                </div>
-            </div>
-        `).join("");
-    }
-
-    // Buttons
-    document.getElementById("btn-clear").addEventListener("click", () => { 
-        word = ""; 
-        renderWord(); 
-        letterEl.textContent = "Ready";
-        confTextEl.textContent = "-";
-        confFillEl.style.width = "0%";
-    });
-    
-    document.getElementById("btn-copy").addEventListener("click", () => {
-        if (word && word.length > 0) {
-            navigator.clipboard.writeText(word).then(() => {
-                alert("Copied: " + word);
-            }).catch(err => {
-                console.error("Copy failed:", err);
-            });
-        } else {
-            alert("Nothing to copy");
-        }
-    });
-
-    // ---------- Initialize Everything ----------
+    // ---------- Initialize ----------
     window.onload = async () => {
-        console.log("Initializing application...");
+        console.log("Initializing...");
         initJitsi();
         await initCamera();
         initWebSocket();
-        renderWord();
-        console.log("Initialization complete");
+        console.log("Ready");
     };
 </script>
 </body>

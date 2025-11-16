@@ -30,9 +30,10 @@ class ASLDataset(Dataset):
     """
     Loads ASL .npy keypoint sequences and .txt labels.
     """
-    def __init__(self, keypoint_dir, label_dir):
+    def __init__(self, keypoint_dir, label_dir, augment = False):
         self.keypoint_dir = keypoint_dir
         self.label_dir = label_dir
+        self.augment = augment
 
         # Collect all video base names: video1, video2, ...
         self.samples = sorted([
@@ -60,6 +61,11 @@ class ASLDataset(Dataset):
 
         # Load sequence
         x = np.load(os.path.join(self.keypoint_dir, base + ".npy")).astype(np.float32)
+
+        if self.augment:
+            if np.random.rand() < 0.5:          # 50% chance to augment
+                x = time_warp(x)
+
         x = torch.from_numpy(x)              # (60, 222)
 
         # Load label index
@@ -97,11 +103,25 @@ class ASLDataModule:
         test_size = int(total * self.test_split)
         train_size = total - val_size - test_size
 
-        self.train_set, self.val_set, self.test_set = random_split(
+        train_set, val_set, test_set = random_split(
             ds,
             [train_size, val_size, test_size],
             generator=torch.Generator().manual_seed(42)
         )
+
+        # TRAIN: enable augment
+        self.train_set = ASLDataset(self.keypoint_dir, self.label_dir, augment=True)
+        self.train_set.samples = [ds.samples[i] for i in train_set.indices]
+        self.train_set.targets = [ds.targets[i] for i in train_set.indices]
+
+        # VAL/TEST: fresh datasets without augment
+        self.val_set = ASLDataset(self.keypoint_dir, self.label_dir, augment=False)
+        self.val_set.samples = [ds.samples[i] for i in val_set.indices]
+        self.val_set.targets = [ds.targets[i] for i in val_set.indices]
+
+        self.test_set = ASLDataset(self.keypoint_dir, self.label_dir, augment=False)
+        self.test_set.samples = [ds.samples[i] for i in test_set.indices]
+        self.test_set.targets = [ds.targets[i] for i in test_set.indices]
 
     def train_dataloader(self):
         return DataLoader(

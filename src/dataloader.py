@@ -1,104 +1,98 @@
-from torch.utils.data import DataLoader, random_split, Dataset, WeightedRandomSampler
+import cv2
 import torch
-import os
 import numpy as np
+import mediapipe as mp
+from model import ASL_BiLSTM
+from config import CLASSES
+import torch.nn.functional as F
 
-def time_warp(seq, warp_factor_range=(0.8, 1.2), max_frames=60):
-    warp = np.random.uniform(*warp_factor_range)
-    new_length = int(seq.shape[0] * warp)
+# ---------------- Device setup
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
 
-    idxs = np.linspace(0, seq.shape[0]-1, new_length).astype(int)
-    seq = seq[idxs]
+# ---------------- Load trained model
+model = ASL_BiLSTM().to(device)
+model.load_state_dict(torch.load("best.pt", map_location=device))
+model.eval()
 
-    if len(seq) > max_frames:
-        seq = seq[:max_frames]
-    elif len(seq) < max_frames:
-        pad = np.zeros((max_frames - len(seq), seq.shape[1]))
-        seq = np.vstack([seq, pad])
+# ---------------- MediaPipe setup
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(max_num_hands=1)
+mp_draw = mp.solutions.drawing_utils
 
-    return seq
+# ---------------- Detect SEQ_LEN from dataloader
+dm = ASLDataModule()
+dm.setup()
+train_loader = dm.train_dataloader()
+for x, _ in train_loader:
+    SEQ_LEN = x.shape[1]  # second dimension = sequence length
+    print("Detected SEQ_LEN:", SEQ_LEN)
+    break
 
-class ASLDataset(Dataset):
-    def __init__(self, keypoint_dir, label_dir, augment=False):
-        self.keypoint_dir = keypoint_dir
-        self.label_dir = label_dir
-        self.augment = augment
+# ---------------- LSTM frame buffer
+frame_buffer = []
 
-        self.samples = sorted([f[:-4] for f in os.listdir(keypoint_dir) if f.endswith(".npy")])
+def preprocess_frame(landmarks):
+    """
+    Convert single frame's hand landmarks into a tensor sequence for LSTM
+    """
+    global frame_buffer
+    
+    # Normalize landmarks
+    landmarks = (landmarks - np.mean(landmarks)) / (np.std(landmarks) + 1e-6)
+    
+    # Add to buffer
+    frame_buffer.append(landmarks)
+    
+    # Keep only last SEQ_LEN frames
+    if len(frame_buffer) > SEQ_LEN:
+        frame_buffer.pop(0)
+    
+    # Pad with zeros if not enough frames yet
+    while len(frame_buffer) < SEQ_LEN:
+        frame_buffer.insert(0, np.zeros_like(landmarks))
+    
+    seq = np.array(frame_buffer)  # shape: (SEQ_LEN, 63)
+    seq_tensor = torch.tensor(seq, dtype=torch.float32).unsqueeze(0).to(device)  # (1, SEQ_LEN, 63)
+    
+    return seq_tensor
 
-        raw_labels = []
-        for base in self.samples:
-            with open(os.path.join(label_dir, base + ".txt")) as f:
-                raw_labels.append(f.read().strip())
+# ---------------- Webcam capture
+cap = cv2.VideoCapture(0)
+print("Starting live ASL gesture detection. Press 'q' to quit.")
 
-        unique = sorted(set(raw_labels))
-        self.label_to_idx = {lbl: i for i, lbl in enumerate(unique)}
-        self.targets = [self.label_to_idx[lbl] for lbl in raw_labels]
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
 
-    def __len__(self):
-        return len(self.samples)
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = hands.process(frame_rgb)
 
-    def __getitem__(self, idx):
-        base = self.samples[idx]
-        x = np.load(os.path.join(self.keypoint_dir, base + ".npy")).astype(np.float32)
+    if results.multi_hand_landmarks:
+        for hand_landmarks in results.multi_hand_landmarks:
+            mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+            
+            # Convert landmarks to array
+            keypoints = np.array([[lm.x, lm.y, lm.z] for lm in hand_landmarks.landmark]).flatten()
+            
+            # Preprocess and predict
+            input_tensor = preprocess_frame(keypoints)
+            with torch.no_grad():
+                output = model(input_tensor)
+                probs = F.softmax(output, dim=1)
+                pred_idx = torch.argmax(probs, dim=1).item()
+                confidence = probs[0, pred_idx].item()
+                pred_label = CLASSES[pred_idx]
 
-        if self.augment and np.random.rand() < 0.5:
-            x = time_warp(x)
+            # Display prediction on frame
+            cv2.putText(frame, f"{pred_label} ({confidence*100:.1f}%)", (10, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-        x = torch.from_numpy(x).float()
-        y = torch.tensor(self.targets[idx], dtype=torch.long)
-        return x, y
+    cv2.imshow("ASL Live Checker", frame)
+    
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-class ASLDataModule:
-    def __init__(self, keypoint_dir="../data/keypoints", label_dir="../data/labels",
-                 batch_size=32, num_workers=4, val_split=0.15, test_split=0.10):
-        self.keypoint_dir = keypoint_dir
-        self.label_dir = label_dir
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.val_split = val_split
-        self.test_split = test_split
-
-    def setup(self):
-        full_ds = ASLDataset(self.keypoint_dir, self.label_dir)
-
-        total = len(full_ds)
-        val_size = int(total * self.val_split)
-        test_size = int(total * self.test_split)
-        train_size = total - val_size - test_size
-
-        train_idx, val_idx, test_idx = random_split(
-            range(total),
-            [train_size, val_size, test_size],
-            generator=torch.Generator().manual_seed(42)
-        )
-
-        self.train_set = ASLDataset(self.keypoint_dir, self.label_dir, augment=True)
-        self.train_set.samples = [full_ds.samples[i] for i in train_idx.indices]
-        self.train_set.targets = [full_ds.targets[i] for i in train_idx.indices]
-        self.train_set.label_to_idx = full_ds.label_to_idx
-
-        self.val_set = ASLDataset(self.keypoint_dir, self.label_dir, augment=False)
-        self.val_set.samples = [full_ds.samples[i] for i in val_idx.indices]
-        self.val_set.targets = [full_ds.targets[i] for i in val_idx.indices]
-        self.val_set.label_to_idx = full_ds.label_to_idx
-
-        self.test_set = ASLDataset(self.keypoint_dir, self.label_dir, augment=False)
-        self.test_set.samples = [full_ds.samples[i] for i in test_idx.indices]
-        self.test_set.targets = [full_ds.targets[i] for i in test_idx.indices]
-        self.test_set.label_to_idx = full_ds.label_to_idx
-
-    def train_dataloader(self):
-        class_counts = torch.bincount(torch.tensor(self.train_set.targets))
-        class_weights = 1.0 / class_counts.float()
-        sample_weights = [class_weights[t] for t in self.train_set.targets]
-
-        sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True)
-
-        return DataLoader(self.train_set, batch_size=self.batch_size, sampler=sampler, num_workers=self.num_workers)
-
-    def val_dataloader(self):
-        return DataLoader(self.val_set, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
-
-    def test_dataloader(self):
-        return DataLoader(self.test_set, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+cap.release()
+cv2.destroyAllWindows()

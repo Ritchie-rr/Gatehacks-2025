@@ -1,123 +1,102 @@
+import cv2
 import torch
-from torch import nn, optim
-from dataloader import ASLDataModule
+import numpy as np
+import mediapipe as mp
 from model import ASL_BiLSTM
-import config
-from analysis import predict, plot_learning_curves
-from sklearn.metrics import ConfusionMatrixDisplay
+from dataloader import ASLDataModule
+import torch.nn.functional as F
 
-def main():
-    # ---------------- Device detection
-    if torch.cuda.is_available():
-        device = torch.device("cuda")
-        print("Using CUDA GPU:", torch.cuda.get_device_name(0))
-        print("GPU Memory Allocated:", torch.cuda.memory_allocated(0)/1024**2, "MB")
-        print("GPU Memory Cached:   ", torch.cuda.memory_reserved(0)/1024**2, "MB")
-    elif torch.backends.mps.is_available():
-        device = torch.device("mps")
-        print("Using Apple MPS")
-    else:
-        device = torch.device("cpu")
-        print("Using CPU")
+# ---------------- Device setup
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
 
-    # ---------------- Data
-    dm = ASLDataModule()
-    dm.setup()
-    train_loader = dm.train_dataloader()
-    val_loader   = dm.val_dataloader()
+# ---------------- Load trained model
+model = ASL_BiLSTM().to(device)
+model.load_state_dict(torch.load("best.pt", map_location=device))
+model.eval()
 
-    # ---------------- Model, Loss, Optimizer
-    model = ASL_BiLSTM().to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=config.LR)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=5)
+# ---------------- MediaPipe setup
+mp_hands = mp.solutions.hands
+hands = mp_hands.Hands(max_num_hands=1)
+mp_draw = mp.solutions.drawing_utils
 
-    best_val_loss = float("inf")
-    patience_counter = 0
-    early_stop_patience = 10
+# ---------------- Detect SEQ_LEN from dataloader
+dm = ASLDataModule()
+dm.setup()
+train_loader = dm.train_dataloader()
 
-    train_losses, val_losses = [], []
-    train_accs, val_accs = [], []
+for x, _ in train_loader:
+    SEQ_LEN = x.shape[1]  # second dimension is sequence length
+    print("Detected SEQ_LEN:", SEQ_LEN)
+    break
 
-    print("Starting training...")
+# ---------------- LSTM frame buffer
+frame_buffer = []
 
-    # ---------------- TRAINING LOOP
-    for epoch in range(1, config.EPOCHS + 1):
-        model.train()
-        running_loss = 0.0
-        correct = 0
-        total = 0
-
-        for x, y in train_loader:
-            x, y = x.float().to(device), y.long().to(device)
-
-            optimizer.zero_grad()
-            logits = model(x)
-            loss = criterion(logits, y)
-            loss.backward()
-            optimizer.step()
-
-            running_loss += loss.item() * x.size(0)
-            correct += (logits.argmax(dim=1) == y).sum().item()
-            total += y.size(0)
-
-        train_loss = running_loss / total
-        train_acc = correct / total
-        train_losses.append(train_loss)
-        train_accs.append(train_acc)
-
-        # ---------------- VALIDATION
-        model.eval()
-        val_running_loss = 0.0
-        val_correct = 0
-        val_total = 0
-
-        with torch.no_grad():
-            for x, y in val_loader:
-                x, y = x.float().to(device), y.long().to(device)
-                logits = model(x)
-                loss = criterion(logits, y)
-
-                val_running_loss += loss.item() * x.size(0)
-                val_correct += (logits.argmax(dim=1) == y).sum().item()
-                val_total += y.size(0)
-
-        val_loss = val_running_loss / val_total
-        val_acc = val_correct / val_total
-        val_losses.append(val_loss)
-        val_accs.append(val_acc)
-
-        scheduler.step(val_loss)
-
-        print(f"Epoch {epoch}/{config.EPOCHS} | "
-              f"Train Loss: {train_loss:.4f}, Acc: {train_acc:.3f} | "
-              f"Val Loss: {val_loss:.4f}, Acc: {val_acc:.3f}")
-
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            patience_counter = 0
-            torch.save(model.state_dict(), "best.pt")
-        else:
-            patience_counter += 1
-            if patience_counter >= early_stop_patience:
-                print("Early stopping triggered.")
-                break
-
-    print("Training complete.")
-    plot_learning_curves(train_losses, val_losses, train_accs, val_accs)
+def preprocess_frame(landmarks):
+    """
+    Converts a single frame's hand landmarks into a tensor sequence for LSTM
+    landmarks: numpy array (21*3,)
+    Returns: tensor (1, SEQ_LEN, 63)
+    """
+    global frame_buffer
     
-    return model, val_loader, device
+    # Normalize landmarks
+    landmarks = (landmarks - np.mean(landmarks)) / (np.std(landmarks) + 1e-6)
+    
+    # Add to buffer
+    frame_buffer.append(landmarks)
+    
+    # Keep only SEQ_LEN frames
+    if len(frame_buffer) > SEQ_LEN:
+        frame_buffer.pop(0)
+    
+    # Pad if not enough frames yet
+    while len(frame_buffer) < SEQ_LEN:
+        frame_buffer.insert(0, np.zeros_like(landmarks))
+    
+    seq = np.array(frame_buffer)  # shape = (SEQ_LEN, 63)
+    seq_tensor = torch.tensor(seq, dtype=torch.float32).unsqueeze(0).to(device)  # (1, SEQ_LEN, 63)
+    
+    return seq_tensor
 
+# ---------------- Webcam capture
+cap = cv2.VideoCapture(0)
+print("Starting live ASL gesture detection... Press 'q' to quit.")
 
-if __name__ == "__main__":
-    model, val_loader, device = main()
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
 
-    val_metrics = predict(model, val_loader, device)
-    print("Val accuracy:", val_metrics["accuracy"])
-    print(val_metrics["report"])
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = hands.process(frame_rgb)
 
-    cfm = ConfusionMatrixDisplay(
-        confusion_matrix=val_metrics["confusion_matrix"],
-        display_labels=list(range(len(val_metrics["confusion_matrix"])))
-    )
-    cfm.plot()
+    if results.multi_hand_landmarks:
+        for hand_landmarks in results.multi_hand_landmarks:
+            mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+            
+            # Convert landmarks to array
+            keypoints = np.array([[lm.x, lm.y, lm.z] for lm in hand_landmarks.landmark]).flatten()
+            
+            # Preprocess and predict
+            input_tensor = preprocess_frame(keypoints)
+            with torch.no_grad():
+                output = model(input_tensor)
+                probs = F.softmax(output, dim=1)
+                pred_idx = torch.argmax(probs, dim=1).item()
+                confidence = probs[0, pred_idx].item()
+                pred_label = CLASSES[pred_idx]
+
+            # Display prediction
+            cv2.putText(frame, f"{pred_label} ({confidence*100:.1f}%)", (10, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+
+    cv2.imshow("ASL Live Checker", frame)
+    
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+

@@ -31,7 +31,7 @@ device = torch.device(
 
 LABELS = ['hello', 'how are you', 'nice to meet you', 'please', 'sorry', 'thank you']
 SEQ_LEN = 60  # Exactly 60 frames for model
-FEATURE_DIM = 222
+FEATURE_DIM = 63
 
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "../src/best.pt")
@@ -124,7 +124,7 @@ async def video_ws(ws: WebSocket):
                 print(f"💾 Saved to temp file: {temp_video}")
                 
                 # Use preprocess_media's extract_keypoints_from_video function
-                # This returns a (60, 222) numpy array - already padded/trimmed to 60 frames
+                # This returns a (60, 63) numpy array - already padded/trimmed to 60 frames
                 sequence = preprocess_media.extract_keypoints_from_video(temp_video)
                 
                 print(f"✅ Extracted keypoint sequence: {sequence.shape}")

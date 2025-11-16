@@ -14,79 +14,66 @@ MAX_FRAMES = 60 # Max number of frames per sequence (cut or pad all videos to th
 
 mp_hands = mp.solutions.hands # Load the MediaPipe Hands solution
 
-# Total dims = 126 (hands)
-FEATURE_DIM = 126
+# Total dims = 63 (hands)
+FEATURE_DIM = 63
 
 
 # Create an instance of the Hands model
 hands = mp_hands.Hands(
     static_image_mode=False,       # Treat frames as a continuous video stream
-    max_num_hands=2,               # Only detect one hand per frame
+    max_num_hands=1,               # Only detect one hand per frame
     min_detection_confidence=0.5,  # Minimum threshold to detect a hand
     min_tracking_confidence=0.5    # Minimum threshold to track landmarks
 )
 
 
 def extract_keypoints_from_video(video_path):
-    cap = cv2.VideoCapture(video_path)
-    
-    # Check if video opened successfully
-    if not cap.isOpened():
-        print(f"Error opening video: {video_path}")
-        return None
-    
+    cap = cv2.VideoCapture(video_path) #Open the video file for reading
+
     sequence = []
-    last_valid = None
-    
+    last_valid = np.zeros(FEATURE_DIM)  # start with zeros
+
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-        
+
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         hand_results = hands.process(rgb)
-        
-        left_hand = np.zeros(63, dtype=np.float32)
-        right_hand = np.zeros(63, dtype=np.float32)
-        
+
+        keypoints = []
+
+        # ----------------------------------------------------
+        # Hand Landmarks (21 points × 3 = 63 dims)
+        # ----------------------------------------------------
         if hand_results.multi_hand_landmarks:
-            for hand_lm, handedness in zip(hand_results.multi_hand_landmarks,
-                                           hand_results.multi_handedness):
-                label = handedness.classification[0].label
-                coords = np.array([[lm.x, lm.y, lm.z] for lm in hand_lm.landmark], 
-                                 dtype=np.float32).flatten()
-                
-                if label == "Left":
-                    left_hand = coords
-                else:
-                    right_hand = coords
-            
-            keypoints = np.concatenate([left_hand, right_hand])
-            last_valid = keypoints.copy()
+            hand = hand_results.multi_hand_landmarks[0]
+
+            for lm in hand.landmark:
+                keypoints.extend([lm.x, lm.y, lm.z])
+
+            keypoints = np.array(keypoints)
+            last_valid = keypoints.copy()  # update last valid
         else:
-            # Use last valid or zeros if none exist yet
-            keypoints = last_valid.copy() if last_valid is not None else np.zeros(FEATURE_DIM, dtype=np.float32)
-        
+            # No hand → reuse last valid frame
+            keypoints = last_valid.copy()
+
         sequence.append(keypoints)
-    
+
     cap.release()
-    
-    # Check for empty sequence
-    if len(sequence) == 0:
-        return None
-    
-    sequence = np.array(sequence, dtype=np.float32)
-    
-    # Normalize sequence length
-    if sequence.shape[0] >= MAX_FRAMES:
+    sequence = np.array(sequence)
+
+    num_frames = sequence.shape[0]
+
+    if num_frames >= MAX_FRAMES:
         sequence = sequence[:MAX_FRAMES]
     else:
-        pad_len = MAX_FRAMES - sequence.shape[0]
+        pad_len = MAX_FRAMES - num_frames
+        # pad using last frame, NOT zeros
         padding = np.tile(sequence[-1], (pad_len, 1))
         sequence = np.vstack([sequence, padding])
-    
-    return sequence
 
+    return sequence
 
 def process_all_videos():
     # Ensure output directories exist

@@ -14,14 +14,14 @@ MAX_FRAMES = 60 # Max number of frames per sequence (cut or pad all videos to th
 
 mp_hands = mp.solutions.hands # Load the MediaPipe Hands solution
 
-# Total dims = 126 (hands)
-FEATURE_DIM = 126
+# Total dims = 63 (hands)
+FEATURE_DIM = 63
 
 
 # Create an instance of the Hands model
 hands = mp_hands.Hands(
     static_image_mode=False,       # Treat frames as a continuous video stream
-    max_num_hands=2,               # Only detect one hand per frame
+    max_num_hands=1,               # Only detect one hand per frame
     min_detection_confidence=0.5,  # Minimum threshold to detect a hand
     min_tracking_confidence=0.5    # Minimum threshold to track landmarks
 )
@@ -44,7 +44,7 @@ def extract_keypoints_from_video(video_path):
         keypoints = []
 
         # ----------------------------------------------------
-        # Hand Landmarks (21 points × 3 x 2(hands) = 126 dims)
+        # Hand Landmarks (21 points × 3 = 63 dims)
         # ----------------------------------------------------
         if hand_results.multi_hand_landmarks:
             hand = hand_results.multi_hand_landmarks[0]

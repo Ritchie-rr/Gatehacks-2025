@@ -5,7 +5,7 @@ import config
 class ASL_BiLSTM(nn.Module):
     def __init__(
         self,
-        input_size: int = 63,                    # 63 features per frame
+        input_size: int = 222,                    # 222 features per frame
         hidden_size: int = config.HIDDEN_DIM,
         output_size: int = config.NUM_CLASSES,   # number of ASL gestures
         num_layers: int = config.LSTM_LAYERS,
@@ -18,7 +18,7 @@ class ASL_BiLSTM(nn.Module):
             hidden_size=hidden_size,             
             num_layers=num_layers,               
             batch_first=True,                    
-            dropout=dropout if num_layers > 1 else 0.0,
+            dropout=dropout,
             bidirectional=True                   
         )
         self.fc = nn.Linear(hidden_size * 2, output_size)
@@ -26,7 +26,7 @@ class ASL_BiLSTM(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        x shape: (batch_size, 60, 63)
+        x shape: (batch_size, 60, 222)
         """
 
         # LSTM output: (batch, seq_len, hidden_size*2)
@@ -38,7 +38,7 @@ class ASL_BiLSTM(nn.Module):
         # Classifier
         logits = self.fc(last_hidden)
 
-        # Convert to probabilities
-        probs = self.softmax(logits)
+        # # Convert to probabilities
+        # probs = self.softmax(logits)
 
-        return probs
+        return logits

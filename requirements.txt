@@ -11,3 +11,5 @@ torch
 torchvision
 torchaudio
 scikit-learn
+flask
+flask_sock

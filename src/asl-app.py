@@ -55,7 +55,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = ASL_BiLSTM()
 
 # TODO: Load your trained weights
-# model.load_state_dict(torch.load('your_model.pth', map_location=device))
+model.load_state_dict(torch.load('best.pt', map_location=device))
 model.to(device)
 model.eval()
 
@@ -917,4 +917,4 @@ if __name__ == '__main__':
     print(f"   Uncomment line: model.load_state_dict(...)")
     print("=" * 60)
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8080, debug=True)

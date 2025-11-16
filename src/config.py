@@ -1,7 +1,7 @@
 '''
 Bidirectional LSTM Parameters
 '''
-HIDDEN_DIM = 128
+HIDDEN_DIM = 256
 
 NUM_CLASSES = 6
 

@@ -90,7 +90,7 @@ if __name__ == "__main__":
     # Run training/validation; also get objects needed for final prediction
     model = ASL_BiLSTM().to(device)
     # load the best model
-    model.load_state_dict(torch.load("best.pth"))
+    model.load_state_dict(torch.load("best.pt"))
 
     dm = ASLDataModule()
     dm.setup()

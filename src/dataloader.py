@@ -1,19 +1,26 @@
+# dataloader.py
 from torch.utils.data import DataLoader, random_split, Dataset, WeightedRandomSampler
 import torch
 import os
 import numpy as np
 
-def time_warp(seq, warp_factor_range=(0.8, 1.2), max_frames=60):
+# ------- CONFIG: match this to your model -------
+SEQ_LEN = 60
+FEATURE_DIM = 222   # <-- ensure this matches the feature vector your model uses
+# -------------------------------------------------
+
+def time_warp(seq, warp_factor_range=(0.8, 1.2), max_frames=SEQ_LEN):
     warp = np.random.uniform(*warp_factor_range)
-    new_length = int(seq.shape[0] * warp)
+    new_length = max(1, int(seq.shape[0] * warp))
 
     idxs = np.linspace(0, seq.shape[0]-1, new_length).astype(int)
     seq = seq[idxs]
 
-    if len(seq) > max_frames:
+    # pad/truncate frames
+    if seq.shape[0] > max_frames:
         seq = seq[:max_frames]
-    elif len(seq) < max_frames:
-        pad = np.tile(seq[-1], (max_frames - len(seq), 1))
+    elif seq.shape[0] < max_frames:
+        pad = np.tile(seq[-1], (max_frames - seq.shape[0], 1))
         seq = np.vstack([seq, pad])
 
     return seq
@@ -37,44 +44,64 @@ def translate(seq, shift_range=(-0.05, 0.05)):
 def frame_dropout(seq, drop_prob=0.10):
     mask = np.random.rand(seq.shape[0]) > drop_prob
     if mask.sum() == 0:
-        return seq
+        # if everything dropped, return original sequence padded/truncated to SEQ_LEN
+        if seq.shape[0] >= SEQ_LEN:
+            return seq[:SEQ_LEN]
+        else:
+            pad = np.tile(seq[-1], (SEQ_LEN - seq.shape[0], 1))
+            return np.vstack([seq, pad])
+
     seq = seq[mask]
 
-    if len(seq) < 60:
-        pad = np.tile(seq[-1], (60 - len(seq), 1))
+    # pad if needed
+    if seq.shape[0] < SEQ_LEN:
+        pad = np.tile(seq[-1], (SEQ_LEN - seq.shape[0], 1))
         seq = np.vstack([seq, pad])
+    elif seq.shape[0] > SEQ_LEN:
+        seq = seq[:SEQ_LEN]
     return seq
+
 
 def landmark_dropout(seq, drop_prob=0.05):
     mask = np.random.rand(*seq.shape) > drop_prob
     return seq * mask
 
+
 def augment(seq):
-    # 50% speed variation
+    # augmentation assumes seq already is (SEQ_LEN, FEATURE_DIM)
     if np.random.rand() < 0.5:
         seq = time_warp(seq)
 
-    # 50% jitter/noise
     if np.random.rand() < 0.5:
         seq = jitter(seq)
 
-    # 30% scale
     if np.random.rand() < 0.3:
         seq = scale(seq)
 
-    # 30% translate
     if np.random.rand() < 0.3:
         seq = translate(seq)
 
-    # 20% frame dropout
     if np.random.rand() < 0.2:
         seq = frame_dropout(seq)
 
-    # 10% landmark occlusion
     if np.random.rand() < 0.1:
         seq = landmark_dropout(seq)
 
+    # ensure shape after augmentation
+    if seq.shape[0] < SEQ_LEN:
+        pad = np.tile(seq[-1], (SEQ_LEN - seq.shape[0], 1))
+        seq = np.vstack([seq, pad])
+    if seq.shape[0] > SEQ_LEN:
+        seq = seq[:SEQ_LEN]
+
+    if seq.shape[1] < FEATURE_DIM:
+        pad = np.zeros((SEQ_LEN, FEATURE_DIM - seq.shape[1]), dtype=np.float32)
+        seq = np.hstack([seq, pad])
+    if seq.shape[1] > FEATURE_DIM:
+        seq = seq[:, :FEATURE_DIM]
+
     return seq
+
 
 class ASLDataset(Dataset):
     def __init__(self, keypoint_dir, label_dir, augment=False):
@@ -96,20 +123,58 @@ class ASLDataset(Dataset):
     def __len__(self):
         return len(self.samples)
 
+    def _fix_shape(self, arr):
+        """
+        Ensure arr is numpy array with shape (SEQ_LEN, FEATURE_DIM).
+        Handles cases where arr may be (T, F) with T != SEQ_LEN or F != FEATURE_DIM.
+        """
+        arr = np.array(arr, dtype=np.float32)
+
+        # If 1D vector (rare), try to reshape
+        if arr.ndim == 1:
+            # assume it's (SEQ_LEN * someF) flatten; fallback to zeros
+            try:
+                arr = arr.reshape((-1, arr.shape[0] // SEQ_LEN))
+            except Exception:
+                # fallback: make zeros
+                arr = np.zeros((SEQ_LEN, FEATURE_DIM), dtype=np.float32)
+
+        # fix frames (rows)
+        if arr.shape[0] < SEQ_LEN:
+            pad_frames = np.tile(arr[-1], (SEQ_LEN - arr.shape[0], 1))
+            arr = np.vstack([arr, pad_frames])
+        elif arr.shape[0] > SEQ_LEN:
+            arr = arr[:SEQ_LEN, :]
+
+        # fix features (cols)
+        if arr.shape[1] < FEATURE_DIM:
+            pad_cols = np.zeros((SEQ_LEN, FEATURE_DIM - arr.shape[1]), dtype=np.float32)
+            arr = np.hstack([arr, pad_cols])
+        elif arr.shape[1] > FEATURE_DIM:
+            arr = arr[:, :FEATURE_DIM]
+
+        return arr
+
     def __getitem__(self, idx):
         base = self.samples[idx]
-        x = np.load(os.path.join(self.keypoint_dir, base + ".npy")).astype(np.float32)
+        path = os.path.join(self.keypoint_dir, base + ".npy")
+        x = np.load(path).astype(np.float32)  # shape may vary: (T, F)
 
-        if self.augment and np.random.rand() < 0.5:
+        # Make shape stable BEFORE augmentation:
+        x = self._fix_shape(x)
+
+        if self.augment:
             x = augment(x)
 
-        x = torch.from_numpy(x).float()
+        x = torch.from_numpy(x).float()  # shape: (SEQ_LEN, FEATURE_DIM)
         y = torch.tensor(self.targets[idx], dtype=torch.long)
         return x, y
 
+
 class ASLDataModule:
     def __init__(self, keypoint_dir="../data/keypoints", label_dir="../data/labels",
-                 batch_size=32, num_workers=4, val_split=0.15, test_split=0.10):
+                 batch_size=32, num_workers=0, val_split=0.15, test_split=0.10):
+        # note: num_workers=0 is safer on Windows; set >0 on Linux if desired
         self.keypoint_dir = keypoint_dir
         self.label_dir = label_dir
         self.batch_size = batch_size

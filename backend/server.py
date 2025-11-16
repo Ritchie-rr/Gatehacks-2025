@@ -29,17 +29,12 @@ device = torch.device(
     else "cpu"
 )
 
-print(f"🚀 Using device: {device}")
-
 LABELS = ['hello', 'how are you', 'nice to meet you', 'please', 'sorry', 'thank you']
 SEQ_LEN = 60  # Exactly 60 frames for model
 FEATURE_DIM = 222
 
-# -------------------------------------------------
-# Load Model
-# -------------------------------------------------
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "../src/best.pt")
 
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "../src/best.pt")
 model = ASL_BiLSTM()
 model.to(device)
 model.load_state_dict(torch.load(MODEL_PATH, map_location=device))

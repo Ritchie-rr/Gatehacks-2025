@@ -2,83 +2,150 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ASL + Jitsi</title>
+    <title>ASL Video Call</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <!-- Jitsi iFrame API -->
-    <script src="https://meet.jit.si/external_api.js"></script>
 
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI";
-            background: #020617;
+            background: #1a1a1a;
             color: #f9fafb;
             height: 100vh;
             overflow: hidden;
         }
-        .layout { display: grid; grid-template-columns: 2fr 1fr; height: 100vh; }
-        #jitsi-container { position: relative; background: #000; }
-        #meet { width: 100%; height: 100%; }
 
-        #asl-overlay {
-            position: absolute; top: 16px; right: 16px;
-            background: rgba(15, 23, 42, 0.95);
-            padding: 16px 20px; border-radius: 12px;
-            z-index: 9999; min-width: 160px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
-            border: 1px solid rgba(56, 189, 248, 0.3);
+        .video-call-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            gap: 2px;
+            background: #000;
         }
-        #asl-overlay-title {
-            font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
-            color: #9ca3af; margin-bottom: 8px;
+
+        .video-panel {
+            position: relative;
+            background: #2d2d2d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
-        #asl-result {
-            font-size: 28px; font-weight: 700; line-height: 1.2;
+
+        /* My Video (Left Side) */
+        #my-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+
+        /* Other Person's Video (Right Side) - Static Image */
+        #other-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Name Tags */
+        .name-tag {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            z-index: 10;
+        }
+
+        /* Caption Box on Other Person's Screen */
+        #caption-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 24px 32px;
+            border-radius: 12px;
+            min-width: 300px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(56, 189, 248, 0.3);
+            display: none;
+            z-index: 20;
+        }
+
+        #caption-box.show {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        #caption-text {
+            font-size: 32px;
+            font-weight: 700;
             background: linear-gradient(135deg, #38bdf8, #a855f7);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            text-align: center; min-height: 40px;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
         }
 
-        .sidebar {
-            background: #020617; border-left: 1px solid #111827;
-            padding: 20px; display: flex; flex-direction: column; gap: 16px;
-            overflow-y: auto;
+        #caption-confidence {
+            font-size: 14px;
+            color: #94a3b8;
         }
-        .card { 
-            background: #0f172a; 
-            border: 1px solid #1f2937; 
-            border-radius: 12px; 
-            padding: 16px; 
-        }
-        .card h2 {
-            font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px;
-            color: #9ca3af; margin-bottom: 12px; font-weight: 600;
+
+        /* Control Panel on My Screen */
+        #control-panel {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            z-index: 10;
         }
 
         .btn {
-            width: 100%; padding: 12px 16px; border-radius: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
             background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             border: none;
             color: white;
-            cursor: pointer; 
+            cursor: pointer;
             font-size: 14px;
             font-weight: 600;
             transition: all 0.2s;
+            display: block;
+            width: 100%;
         }
+
         .btn:hover:not(:disabled) {
             background: linear-gradient(135deg, #2563eb, #7c3aed);
             transform: translateY(-1px);
         }
+
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
             transform: none;
         }
+
         .btn-recording {
             background: linear-gradient(135deg, #ef4444, #dc2626);
             animation: pulse 1.5s ease-in-out infinite;
         }
+
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
@@ -86,409 +153,331 @@
 
         #recording-status {
             text-align: center;
-            padding: 10px;
-            margin-top: 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 600;
-            background: #1e293b;
+            margin-top: 8px;
+            font-size: 12px;
             color: #94a3b8;
             display: none;
         }
+
         #recording-status.active {
             display: block;
-            background: rgba(239, 68, 68, 0.2);
             color: #fca5a5;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            font-weight: 600;
         }
 
-        .status-item {
+        .status-indicator {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 0;
-            font-size: 13px;
-            color: #d1d5db;
-        }
-        .dot { 
-            width: 8px; height: 8px; 
-            border-radius: 50%; 
-            background: #4b5563; 
-            flex-shrink: 0;
-        }
-        .dot.ok { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
-        .dot.err { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.5); }
-
-        .result-display {
-            background: #020617;
-            border-radius: 8px;
-            padding: 16px;
-            min-height: 80px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            font-size: 16px;
-            color: #f9fafb;
-        }
-        .result-display.empty {
-            font-style: italic;
-            color: #6b7280;
-            font-size: 14px;
+            gap: 6px;
+            z-index: 10;
         }
 
-        .info-box {
-            background: rgba(59, 130, 246, 0.1);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 12px;
-            color: #93c5fd;
-            line-height: 1.6;
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4b5563;
+        }
+
+        .dot.ok {
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+        }
+
+        .dot.err {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
         }
     </style>
 </head>
 
 <body>
-<div class="layout">
-    <div id="jitsi-container">
-        <div id="meet"></div>
-
-        <div id="asl-overlay">
-            <div id="asl-overlay-title">ASL RESULT</div>
-            <div id="asl-result">Ready</div>
-        </div>
-
-        <video id="asl-cam" autoplay playsinline muted style="display:none;"></video>
-    </div>
-
-    <div class="sidebar">
-        <div class="card">
-            <h2>Record ASL Sign</h2>
+    <div class="video-call-container">
+        <!-- Left Panel: My Video -->
+        <div class="video-panel" id="my-panel">
+            <video id="my-video" autoplay playsinline muted></video>
             
-            <div class="info-box">
-                Records a 2-second MP4 video of your ASL gesture and sends it to your backend for processing.
+            <div class="name-tag">You</div>
+            
+            <div class="status-indicator">
+                <div class="dot" id="dot-status"></div>
+                <span id="status-text">Connecting...</span>
             </div>
 
-            <button class="btn" id="btn-record">🎥 Record Sign (2s)</button>
-
-            <div id="recording-status">Recording: <span id="recording-timer">0.0</span>s</div>
-        </div>
-
-        <div class="card">
-            <h2>Backend Response</h2>
-            <div id="result-display" class="result-display empty">
-                Waiting for result...
+            <div id="control-panel">
+                <button class="btn" id="btn-record">🎥 Sign to Translate (2s)</button>
+                <div id="recording-status">Recording: <span id="recording-timer">0.0</span>s</div>
             </div>
         </div>
 
-        <div class="card">
-            <h2>System Status</h2>
-            <div class="status-item">
-                <div class="dot" id="dot-camera"></div>
-                <span id="status-camera">Camera: Initializing...</span>
-            </div>
-            <div class="status-item">
-                <div class="dot" id="dot-ws"></div>
-                <span id="status-ws">Backend: Connecting...</span>
+        <!-- Right Panel: Other Person -->
+        <div class="video-panel" id="other-panel">
+            <img id="other-video" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%232d3748;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%231a202c;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23grad)' width='800' height='600'/%3E%3Ccircle cx='400' cy='250' r='80' fill='%234a5568'/%3E%3Cpath d='M 400 330 Q 320 380 280 480 L 520 480 Q 480 380 400 330 Z' fill='%234a5568'/%3E%3Ccircle cx='380' cy='240' r='8' fill='%23cbd5e0'/%3E%3Ccircle cx='420' cy='240' r='8' fill='%23cbd5e0'/%3E%3Cpath d='M 380 270 Q 400 280 420 270' stroke='%23cbd5e0' stroke-width='3' fill='none'/%3E%3C/svg%3E" alt="Other Person">
+            
+            <div class="name-tag">Alex</div>
+
+            <!-- Caption Box -->
+            <div id="caption-box">
+                <div id="caption-text">Hello</div>
+                <div id="caption-confidence">95% confidence</div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-    let ws = null;
-    let jitsiApi = null;
-    let isRecording = false;
-    let mediaRecorder = null;
-    let recordedChunks = [];
+    <script>
+        let ws = null;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let recordedChunks = [];
 
-    const aslCam = document.getElementById("asl-cam");
+        const myVideo = document.getElementById("my-video");
+        const btnRecord = document.getElementById("btn-record");
+        const recordingStatus = document.getElementById("recording-status");
+        const recordingTimer = document.getElementById("recording-timer");
+        const captionBox = document.getElementById("caption-box");
+        const captionText = document.getElementById("caption-text");
+        const captionConfidence = document.getElementById("caption-confidence");
+        const dotStatus = document.getElementById("dot-status");
+        const statusText = document.getElementById("status-text");
 
-    const resultOverlay = document.getElementById("asl-result");
-    const resultDisplay = document.getElementById("result-display");
-
-    const dotCamera = document.getElementById("dot-camera");
-    const dotWs = document.getElementById("dot-ws");
-    const statusCamera = document.getElementById("status-camera");
-    const statusWs = document.getElementById("status-ws");
-
-    const btnRecord = document.getElementById("btn-record");
-    const recordingStatus = document.getElementById("recording-status");
-    const recordingTimer = document.getElementById("recording-timer");
-
-    // ---------- Jitsi ----------
-    function initJitsi() {
-        try {
-            jitsiApi = new JitsiMeetExternalAPI("meet.jit.si", {
-                roomName: "ASLRoom_" + Math.random().toString(36).substr(2, 9),
-                parentNode: document.querySelector('#meet'),
-                width: "100%", 
-                height: "100%",
-                configOverwrite: {
-                    startWithAudioMuted: false,
-                    startWithVideoMuted: false,
-                },
-                interfaceConfigOverwrite: { 
-                    SHOW_JITSI_WATERMARK: false,
-                }
-            });
-            console.log("Jitsi initialized");
-        } catch (err) {
-            console.error("Jitsi error:", err);
-        }
-    }
-
-    // ---------- Camera ----------
-    async function initCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    width: { ideal: 640 }, 
-                    height: { ideal: 480 },
-                    facingMode: "user"
-                },
-                audio: false
-            });
-            aslCam.srcObject = stream;
-            
-            await new Promise((resolve) => {
-                aslCam.onloadedmetadata = () => {
-                    aslCam.play();
-                    resolve();
-                };
-            });
-            
-            dotCamera.classList.add("ok");
-            statusCamera.textContent = "Camera: Ready";
-            console.log("Camera ready");
-        } catch (err) {
-            dotCamera.classList.add("err");
-            statusCamera.textContent = "Camera: Error";
-            console.error("Camera error:", err);
-            alert("Camera access required. Please allow and refresh.");
-        }
-    }
-
-    // ---------- WebSocket ----------
-    function initWebSocket() {
-        const wsUrl = "ws://localhost:8000/video";
-        
-        try {
-            ws = new WebSocket(wsUrl);
-            ws.binaryType = 'arraybuffer';  // Important for receiving binary responses
-        } catch (err) {
-            console.error("WebSocket error:", err);
-            updateWSStatus(false);
-            return;
+        // ---------- Camera ----------
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        width: { ideal: 1280 }, 
+                        height: { ideal: 720 },
+                        facingMode: "user"
+                    },
+                    audio: false
+                });
+                myVideo.srcObject = stream;
+                console.log("Camera ready");
+            } catch (err) {
+                console.error("Camera error:", err);
+                alert("Camera access required. Please allow and refresh.");
+            }
         }
 
-        ws.onopen = () => {
-            console.log("WebSocket connected");
-            updateWSStatus(true);
-        };
-
-        ws.onclose = () => {
-            console.log("WebSocket closed");
-            updateWSStatus(false);
-            setTimeout(() => initWebSocket(), 3000);
-        };
-
-        ws.onerror = () => {
-            console.error("WebSocket error");
-            updateWSStatus(false);
-        };
-
-        ws.onmessage = (event) => {
-            console.log("Received from backend");
+        // ---------- WebSocket ----------
+        function initWebSocket() {
+            const wsUrl = "ws://localhost:8000/video";
             
             try {
-                // Try to parse as JSON
-                const data = JSON.parse(event.data);
-                displayResult(data);
+                ws = new WebSocket(wsUrl);
             } catch (err) {
-                // If not JSON, display as text
-                displayResult({ result: event.data });
+                console.error("WebSocket error:", err);
+                updateStatus(false);
+                return;
             }
-        };
-    }
 
-    function updateWSStatus(connected) {
-        dotWs.classList.remove("ok", "err");
-        
-        if (connected) {
-            dotWs.classList.add("ok");
-            statusWs.textContent = "Backend: Connected";
-        } else {
-            dotWs.classList.add("err");
-            statusWs.textContent = "Backend: Disconnected";
-        }
-    }
+            ws.onopen = () => {
+                console.log("WebSocket connected");
+                updateStatus(true);
+            };
 
-    // ---------- Recording (2 seconds MP4) ----------
-    let recordStartTime = null;
-    let timerInterval = null;
+            ws.onclose = () => {
+                console.log("WebSocket closed");
+                updateStatus(false);
+                setTimeout(() => initWebSocket(), 3000);
+            };
 
-    async function startRecording() {
-        if (isRecording) return;
+            ws.onerror = () => {
+                console.error("WebSocket error");
+                updateStatus(false);
+            };
 
-        if (!aslCam.srcObject) {
-            alert("Camera not ready");
-            return;
-        }
-
-        if (!ws || ws.readyState !== WebSocket.OPEN) {
-            alert("Backend not connected");
-            return;
-        }
-
-        console.log("Starting 2-second MP4 recording...");
-        isRecording = true;
-        recordedChunks = [];
-        
-        btnRecord.disabled = true;
-        btnRecord.classList.add("btn-recording");
-        btnRecord.textContent = "🔴 Recording...";
-        recordingStatus.classList.add("active");
-        recordStartTime = Date.now();
-
-        resultOverlay.textContent = "Recording...";
-        resultDisplay.textContent = "Recording in progress...";
-        resultDisplay.classList.add("empty");
-
-        // Start timer display
-        timerInterval = setInterval(() => {
-            const elapsed = (Date.now() - recordStartTime) / 1000;
-            recordingTimer.textContent = elapsed.toFixed(1);
-        }, 100);
-
-        try {
-            // Create MediaRecorder with MP4 format
-            const stream = aslCam.srcObject;
-            const options = { mimeType: 'video/webm' }; // webm is more widely supported
-            
-            mediaRecorder = new MediaRecorder(stream, options);
-            
-            mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    recordedChunks.push(event.data);
+            ws.onmessage = (event) => {
+                console.log("Received from backend");
+                
+                try {
+                    const data = JSON.parse(event.data);
+                    displayCaption(data);
+                } catch (err) {
+                    console.error("Parse error:", err);
                 }
             };
+        }
 
-            mediaRecorder.onstop = () => {
-                console.log("Recording stopped, processing video...");
-                processRecording();
+        function updateStatus(connected) {
+            dotStatus.classList.remove("ok", "err");
+            
+            if (connected) {
+                dotStatus.classList.add("ok");
+                statusText.textContent = "Connected";
+            } else {
+                dotStatus.classList.add("err");
+                statusText.textContent = "Disconnected";
+            }
+        }
+
+        // ---------- Recording (2 seconds) ----------
+        let recordStartTime = null;
+        let timerInterval = null;
+
+        async function startRecording() {
+            if (isRecording) return;
+
+            if (!myVideo.srcObject) {
+                alert("Camera not ready");
+                return;
+            }
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert("Backend not connected");
+                return;
+            }
+
+            console.log("Starting 2-second recording...");
+            isRecording = true;
+            recordedChunks = [];
+            
+            btnRecord.disabled = true;
+            btnRecord.classList.add("btn-recording");
+            btnRecord.textContent = "🔴 Recording...";
+            recordingStatus.classList.add("active");
+            recordStartTime = Date.now();
+
+            // Start timer display
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - recordStartTime) / 1000;
+                recordingTimer.textContent = elapsed.toFixed(1);
+            }, 100);
+
+            try {
+                const stream = myVideo.srcObject;
+                const options = { mimeType: 'video/webm' };
+                
+                mediaRecorder = new MediaRecorder(stream, options);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    console.log("Recording stopped, processing...");
+                    processRecording();
+                };
+
+                mediaRecorder.start();
+                console.log("MediaRecorder started");
+
+                // Stop after 2 seconds
+                setTimeout(() => {
+                    stopRecording();
+                }, 2000);
+
+            } catch (err) {
+                console.error("MediaRecorder error:", err);
+                alert("Recording failed: " + err.message);
+                resetUI();
+            }
+        }
+
+        function stopRecording() {
+            if (!isRecording) return;
+            
+            console.log("Stopping recording...");
+            clearInterval(timerInterval);
+            
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            
+            isRecording = false;
+            btnRecord.classList.remove("btn-recording");
+            btnRecord.textContent = "🎥 Sign to Translate (2s)";
+            recordingStatus.classList.remove("active");
+        }
+
+        async function processRecording() {
+            if (recordedChunks.length === 0) {
+                console.error("No video data");
+                btnRecord.disabled = false;
+                return;
+            }
+
+            const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+            console.log("Video blob:", videoBlob.size, "bytes");
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64Video = reader.result.split(',')[1];
+                
+                console.log("Sending to backend...");
+                
+                ws.send(JSON.stringify({
+                    video: base64Video,
+                    format: 'webm',
+                    size: videoBlob.size
+                }));
             };
-
-            mediaRecorder.start();
-            console.log("MediaRecorder started");
-
-            // Stop after 2 seconds
-            setTimeout(() => {
-                stopRecording();
-            }, 2000);
-
-        } catch (err) {
-            console.error("MediaRecorder error:", err);
-            alert("Recording failed: " + err.message);
-            resetUI();
+            
+            reader.onerror = (err) => {
+                console.error("FileReader error:", err);
+                btnRecord.disabled = false;
+            };
+            
+            reader.readAsDataURL(videoBlob);
         }
-    }
 
-    function stopRecording() {
-        if (!isRecording) return;
-        
-        console.log("Stopping recording...");
-        clearInterval(timerInterval);
-        
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-        }
-        
-        isRecording = false;
-        btnRecord.classList.remove("btn-recording");
-        btnRecord.textContent = "🎥 Record Sign (2s)";
-        recordingStatus.classList.remove("active");
-    }
-
-    async function processRecording() {
-        if (recordedChunks.length === 0) {
-            console.error("No video data recorded");
-            displayResult({ error: "No video data captured" });
+        function resetUI() {
+            isRecording = false;
             btnRecord.disabled = false;
-            return;
+            btnRecord.classList.remove("btn-recording");
+            btnRecord.textContent = "🎥 Sign to Translate (2s)";
+            recordingStatus.classList.remove("active");
+            clearInterval(timerInterval);
         }
 
-        // Create blob from recorded chunks
-        const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
-        console.log("Video blob created:", videoBlob.size, "bytes");
+        btnRecord.addEventListener("click", startRecording);
 
-        // Convert to base64 for sending via WebSocket
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64Video = reader.result.split(',')[1]; // Remove data:video/webm;base64,
+        // ---------- Display Caption ----------
+        function displayCaption(data) {
+            console.log("Displaying caption:", data);
             
-            console.log("Sending video to backend...");
-            resultOverlay.textContent = "Processing...";
-            resultDisplay.textContent = "Sending to backend...";
+            if (data.error) {
+                console.error("Error:", data.error);
+                btnRecord.disabled = false;
+                return;
+            }
+
+            const confidence = Math.round((data.confidence || 0) * 100);
             
-            // Send as JSON with base64 video
-            ws.send(JSON.stringify({
-                video: base64Video,
-                format: 'webm',
-                size: videoBlob.size
-            }));
-        };
-        
-        reader.onerror = (err) => {
-            console.error("FileReader error:", err);
-            displayResult({ error: "Failed to read video" });
+            // Only show if confidence >= 80%
+            if (confidence >= 80) {
+                captionText.textContent = data.prediction || "Unknown";
+                captionConfidence.textContent = `${confidence}% confidence`;
+                
+                captionBox.classList.add("show");
+                
+                // Hide after 3 seconds
+                setTimeout(() => {
+                    captionBox.classList.remove("show");
+                }, 3000);
+            } else {
+                console.log("Confidence too low:", confidence + "%");
+            }
+            
             btnRecord.disabled = false;
-        };
-        
-        reader.readAsDataURL(videoBlob);
-    }
-
-    function resetUI() {
-        isRecording = false;
-        btnRecord.disabled = false;
-        btnRecord.classList.remove("btn-recording");
-        btnRecord.textContent = "🎥 Record Sign (2s)";
-        recordingStatus.classList.remove("active");
-        clearInterval(timerInterval);
-    }
-
-    btnRecord.addEventListener("click", startRecording);
-
-    // ---------- Display Result ----------
-    function displayResult(data) {
-        console.log("Displaying result:", data);
-        
-        if (data.error) {
-            resultOverlay.textContent = "Error";
-            resultDisplay.textContent = data.error;
-            resultDisplay.classList.add("empty");
-        } else {
-            // Display whatever the backend sends
-            resultOverlay.textContent = data.prediction || "Result";
-            
-            // Format the result nicely
-            let displayText = JSON.stringify(data, null, 2);
-            resultDisplay.textContent = displayText;
-            resultDisplay.classList.remove("empty");
         }
-        
-        btnRecord.disabled = false;
-    }
 
-    // ---------- Initialize ----------
-    window.onload = async () => {
-        console.log("Initializing...");
-        initJitsi();
-        await initCamera();
-        initWebSocket();
-        console.log("Ready");
-    };
-</script>
+        // ---------- Initialize ----------
+        window.onload = async () => {
+            console.log("Initializing...");
+            await initCamera();
+            initWebSocket();
+            console.log("Ready");
+        };
+    </script>
 </body>
 </html>

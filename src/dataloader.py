@@ -3,6 +3,29 @@ import torch
 import os
 import numpy as np
 
+def time_warp(seq, warp_factor_range=(0.8, 1.2), max_frames=60):
+    """
+    Randomly speeds up or slows down a sequence by warping the time axis.
+    warp < 1.0 → slower (more frames)
+    warp > 1.0 → faster (fewer frames)
+    """
+
+    warp = np.random.uniform(*warp_factor_range)
+    new_length = int(seq.shape[0] * warp)
+
+    # Generate new frame indices
+    idxs = np.linspace(0, seq.shape[0]-1, new_length).astype(int)
+    seq = seq[idxs]
+
+    # Crop or pad back to fixed length
+    if len(seq) > max_frames:
+        seq = seq[:max_frames]
+    elif len(seq) < max_frames:
+        pad = np.zeros((max_frames - len(seq), seq.shape[1]))
+        seq = np.vstack([seq, pad])
+
+    return seq
+
 class ASLDataset(Dataset): 
     """
     Loads ASL .npy keypoint sequences and .txt labels.

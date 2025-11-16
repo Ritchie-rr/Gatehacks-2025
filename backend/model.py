@@ -5,7 +5,7 @@ import config
 class ASL_BiLSTM(nn.Module):
     def __init__(
         self,
-        input_size: int = 222,                    # 222 features per frame
+        input_size: int = 126,                    # 126 features per frame
         hidden_size: int = config.HIDDEN_DIM,
         output_size: int = config.NUM_CLASSES,   # number of ASL gestures
         num_layers: int = config.LSTM_LAYERS,
@@ -26,7 +26,7 @@ class ASL_BiLSTM(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        x shape: (batch_size, 60, 222)
+        x shape: (batch_size, 60, 126)
         """
 
         # LSTM output: (batch, seq_len, hidden_size*2)

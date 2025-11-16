@@ -7,7 +7,7 @@ from analysis import predict, plot_learning_curves
 from sklearn.metrics import ConfusionMatrixDisplay
 
 def main():
-    # ---------------- Device detection
+    # Device detection
     if torch.cuda.is_available():
         device = torch.device("cuda")
         print("Using CUDA GPU:", torch.cuda.get_device_name(0))
@@ -20,13 +20,13 @@ def main():
         device = torch.device("cpu")
         print("Using CPU")
 
-    # ---------------- Data
+    # Data
     dm = ASLDataModule()
     dm.setup()
     train_loader = dm.train_dataloader()
     val_loader   = dm.val_dataloader()
 
-    # ---------------- Model, Loss, Optimizer
+    # Model, Loss, Optimizer
     model = ASL_BiLSTM().to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=config.LR)
@@ -41,7 +41,7 @@ def main():
 
     print("Starting training...")
 
-    # ---------------- TRAINING LOOP
+    # Training Loop
     for epoch in range(1, config.EPOCHS + 1):
         model.train()
         running_loss = 0.0
@@ -66,7 +66,7 @@ def main():
         train_losses.append(train_loss)
         train_accs.append(train_acc)
 
-        # ---------------- VALIDATION
+        # Validation
         model.eval()
         val_running_loss = 0.0
         val_correct = 0

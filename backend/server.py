@@ -20,9 +20,7 @@ from model import ASL_BiLSTM
 # Import preprocess_media - use its extract_keypoints_from_video function
 import preprocess_media
 
-# -------------------------------------------------
-# Configuration
-# -------------------------------------------------
+
 device = torch.device(
     "cuda" if torch.cuda.is_available()
     else "mps" if torch.backends.mps.is_available()
@@ -40,9 +38,7 @@ model.to(device)
 model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
 model.eval()
 
-# -------------------------------------------------
-# FastAPI App
-# -------------------------------------------------
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -69,13 +65,11 @@ async def health():
         "device": str(device)
     }
 
-# -------------------------------------------------
-# WebSocket Endpoint - Receives MP4 Video
-# -------------------------------------------------
+
 @app.websocket("/video")
 async def video_ws(ws: WebSocket):
     await ws.accept()
-    print("🔌 WebSocket connected")
+    print("WebSocket connected")
     
     try:
         while True:
@@ -85,7 +79,7 @@ async def video_ws(ws: WebSocket):
             try:
                 data = json.loads(msg)
             except json.JSONDecodeError as e:
-                print(f"❌ JSON decode error: {e}")
+                print(f"JSON decode error: {e}")
                 await ws.send_text(json.dumps({
                     "error": "Invalid JSON format"
                 }))
@@ -95,20 +89,20 @@ async def video_ws(ws: WebSocket):
             video_format = data.get("format", "webm")
             
             if not video_base64:
-                print("❌ No video data received")
+                print("No video data received")
                 await ws.send_text(json.dumps({
                     "error": "No video data in request"
                 }))
                 continue
             
-            print(f"📹 Received video: {len(video_base64)} chars, format: {video_format}")
+            print(f"Received video: {len(video_base64)} chars, format: {video_format}")
             
             # Decode base64 video
             try:
                 video_bytes = base64.b64decode(video_base64)
-                print(f"✅ Decoded video: {len(video_bytes)} bytes")
+                print(f"Decoded video: {len(video_bytes)} bytes")
             except Exception as e:
-                print(f"❌ Base64 decode error: {e}")
+                print(f"Base64 decode error: {e}")
                 await ws.send_text(json.dumps({
                     "error": "Failed to decode video"
                 }))
@@ -121,13 +115,13 @@ async def video_ws(ws: WebSocket):
                     f.write(video_bytes)
                     temp_video = f.name
                 
-                print(f"💾 Saved to temp file: {temp_video}")
+                print(f"Saved to temp file: {temp_video}")
                 
                 # Use preprocess_media's extract_keypoints_from_video function
                 # This returns a (60, 63) numpy array - already padded/trimmed to 60 frames
                 sequence = preprocess_media.extract_keypoints_from_video(temp_video)
                 
-                print(f"✅ Extracted keypoint sequence: {sequence.shape}")
+                print(f"Extracted keypoint sequence: {sequence.shape}")
                 
                 # Verify shape
                 if sequence.shape != (SEQ_LEN, FEATURE_DIM):
@@ -145,7 +139,7 @@ async def video_ws(ws: WebSocket):
                 label = LABELS[int(idx.item())]
                 confidence = float(conf.item())
                 
-                print(f"🎯 Prediction: {label} ({confidence*100:.1f}%)")
+                print(f"Prediction: {label} ({confidence*100:.1f}%)")
                 
                 # Send result
                 await ws.send_text(json.dumps({
@@ -154,7 +148,7 @@ async def video_ws(ws: WebSocket):
                 }))
                 
             except Exception as e:
-                print(f"❌ Processing error: {e}")
+                print(f"Processing error: {e}")
                 await ws.send_text(json.dumps({
                     "error": f"Video processing failed: {str(e)}"
                 }))
@@ -164,19 +158,19 @@ async def video_ws(ws: WebSocket):
                 if temp_video and os.path.exists(temp_video):
                     try:
                         os.unlink(temp_video)
-                        print(f"🗑️  Deleted temp file: {temp_video}")
+                        print(f"Deleted temp file: {temp_video}")
                     except:
                         pass
     
     except WebSocketDisconnect:
-        print("🔌 WebSocket disconnected")
+        print("WebSocket disconnected")
     except Exception as e:
-        print(f"❌ WebSocket error: {e}")
+        print(f"WebSocket error: {e}")
 
 
 if __name__ == "__main__":
-    print("🚀 Starting ASL Recognition Server...")
-    print(f"📍 Device: {device}")
-    print(f"📋 Labels: {LABELS}")
-    print(f"📹 Input: 2-second video (WebM/MP4)")
+    print("Starting ASL Recognition Server...")
+    print(f"Device: {device}")
+    print(f"Labels: {LABELS}")
+    print(f"Input: 2-second video (WebM/MP4)")
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -51,8 +51,8 @@ class ASLDataModule:
     """
     def __init__(
         self,
-        keypoint_dir="data/keypoints",
-        label_dir="data/labels",
+        keypoint_dir="../data/keypoints",
+        label_dir="../data/labels",
         batch_size=32,
         num_workers=4,
         val_split=0.15,

@@ -2,37 +2,9 @@ import torch
 from torch import nn, optim
 from dataloader import ASLDataModule
 from model import ASL_BiLSTM
-import matplotlib.pyplot as plt
 import config
-
-def plot_learning_curves(train_losses, val_losses, train_accuracies, val_accuracies):
-    # TODO: Use this function to plot learning curve
-    """Plot learning curves for loss and accuracy"""
-    
-    epochs = range(1, len(train_losses) + 1)
-    
-    (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
-    
-    # Plot losses
-    ax1.plot(epochs, train_losses, 'b-', label='Training Loss', linewidth=2)
-    ax1.plot(epochs, val_losses, 'r-', label='Validation Loss', linewidth=2)
-    ax1.set_title('Training and Validation Loss', fontsize=14, fontweight='bold')
-    ax1.set_xlabel('Epoch', fontsize=12)
-    ax1.set_ylabel('Loss', fontsize=12)
-    ax1.legend(fontsize=12)
-    ax1.grid(True, alpha=0.3)
-    
-    # Plot accuracies
-    ax2.plot(epochs, train_accuracies, 'b-', label='Training Accuracy', linewidth=2)
-    ax2.plot(epochs, val_accuracies, 'r-', label='Validation Accuracy', linewidth=2)
-    ax2.set_title('Training and Validation Accuracy', fontsize=14, fontweight='bold')
-    ax2.set_xlabel('Epoch', fontsize=12)
-    ax2.set_ylabel('Accuracy (%)', fontsize=12)
-    ax2.legend(fontsize=12)
-    ax2.grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    plt.show()
+from analysis import predict, plot_learning_curves
+from sklearn.metrics import ConfusionMatrixDisplay
 
 def main():
     device = torch.device(
@@ -129,7 +101,19 @@ def main():
                 break
 
     print("Training complete.")
+    plot_learning_curves(train_losses, val_losses, train_acc, val_acc)
+    
+    return model, val_loader, device
 
 
 if __name__ == "__main__":
-    main()
+    model, val_loader, device = main()
+    #validation stats from model on training
+    val_metrics = predict(model, val_loader, device)
+    print("Val accuracy:", val_metrics["accuracy"])
+    print(val_metrics["report"])
+    cfm = ConfusionMatrixDisplay(
+        confusion_matrix=val_metrics["confusion_matrix"],
+        display_labels=[0, 1, 2, 3]
+    )  # Citation: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.ConfusionMatrixDisplay.html
+    cfm.plot()

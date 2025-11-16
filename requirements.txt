@@ -7,3 +7,6 @@ torchvision
 torchaudio
 tqdm
 tensorflow
+torch
+torchvision
+torchaudio

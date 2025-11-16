@@ -75,15 +75,22 @@ def predict(model, X_test_loader, device):
         }
 
 if __name__ == "__main__":
-    device = torch.device(
-        "mps" if torch.backends.mps.is_available()
-        else "cuda" if torch.cuda.is_available()
-        else "cpu"
-    )
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print("Using CUDA GPU:", torch.cuda.get_device_name(0))
+        print("GPU Memory Allocated:", torch.cuda.memory_allocated(0)/1024**2, "MB")
+        print("GPU Memory Cached:   ", torch.cuda.memory_reserved(0)/1024**2, "MB")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+        print("Using Apple MPS")
+    else:
+        device = torch.device("cpu")
+        print("Using CPU")
+
     # Run training/validation; also get objects needed for final prediction
     model = ASL_BiLSTM().to(device)
     # load the best model
-    model.load_state_dict(torch.load("best_model.pt"))
+    model.load_state_dict(torch.load("best.pth"))
 
     dm = ASLDataModule()
     dm.setup()

@@ -1,9 +1,9 @@
 '''
 Bidirectional LSTM Parameters
 '''
-HIDDEN_DIM = 64
+HIDDEN_DIM = 128
 
-NUM_CLASSES = 12
+NUM_CLASSES = 6
 
 LSTM_LAYERS = 2
 
@@ -13,6 +13,6 @@ DROPOUT_RATE = 0.2
 Training Parameters
 '''
 
-LR = .01
+LR = .001
 
-EPOCHS = 50
+EPOCHS = 100

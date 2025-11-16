@@ -17,10 +17,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Import model
-from src.model import ASL_BiLSTM
+from model import ASL_BiLSTM
 
 # Import preprocess globals (hands, face, landmark indices)
-import scripts.preprocess_media as preprocess
+import preprocess_media as preprocess
 
 # -------------------------------------------------
 # Device

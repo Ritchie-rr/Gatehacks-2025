@@ -46,6 +46,7 @@ def predict(model, X_test_loader, device):
         with torch.no_grad():
             for data, target in X_test_loader:
                 data = data.to(device)
+                target = target.to(device)
                 outputs = model(data)
                 _, predicted = torch.max(outputs.data, 1)
                 total += target.size(0)
@@ -104,3 +105,4 @@ if __name__ == "__main__":
         display_labels=[0, 1, 2, 3]
     )
     cfm_test.plot()
+    plt.show()

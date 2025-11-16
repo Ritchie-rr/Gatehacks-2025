@@ -124,10 +124,22 @@ class ASLDataModule:
         self.test_set.targets = [ds.targets[i] for i in test_set.indices]
 
     def train_dataloader(self):
+        # Count class frequencies in the training set
+        class_counts = torch.bincount(torch.tensor(self.train_set.targets))
+        class_weights = 1.0 / class_counts.float()
+
+        # Assign a weight to each sample based on its class
+        sample_weights = [class_weights[t] for t in self.train_set.targets]
+        sampler = torch.utils.data.WeightedRandomSampler(
+            weights=sample_weights,
+            num_samples=len(sample_weights),
+            replacement=True
+        )
+
         return DataLoader(
             self.train_set,
             batch_size=self.batch_size,
-            shuffle=True,
+            sampler=sampler,   # <-- HERE (replaces shuffle=True)
             num_workers=self.num_workers,
         )
 

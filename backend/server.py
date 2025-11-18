@@ -32,7 +32,7 @@ SEQ_LEN = 60  # Exactly 60 frames for model
 FEATURE_DIM = 63
 
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "../src/best.pt")
+MODEL_PATH = "src/best.pt"
 model = ASL_BiLSTM()
 model.to(device)
 model.load_state_dict(torch.load(MODEL_PATH, map_location=device))

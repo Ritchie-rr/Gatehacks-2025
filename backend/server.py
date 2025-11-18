@@ -18,8 +18,7 @@ import uvicorn
 from model import ASL_BiLSTM
 
 # Import preprocess_media - use its extract_keypoints_from_video function
-import preprocess_media
-
+import preprocess_media 
 
 device = torch.device(
     "cuda" if torch.cuda.is_available()

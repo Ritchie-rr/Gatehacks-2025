@@ -1,5 +1,9 @@
-torch
 fastapi
 uvicorn
-pillow
-mediapipe
+mediapipe==0.10.14
+opencv-python==4.8.1.78
+numpy==1.26.4
+torch
+torchvision
+torchaudio
+python-multipart

@@ -15,10 +15,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 # Import model
-from model import ASL_BiLSTM
+from backend.model import ASL_BiLSTM
+
 
 # Import preprocess_media - use its extract_keypoints_from_video function
-import preprocess_media 
+from backend import preprocess_media
+
 
 device = torch.device(
     "cuda" if torch.cuda.is_available()

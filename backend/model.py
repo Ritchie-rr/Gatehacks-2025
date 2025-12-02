@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import config
+from backend import config
 
 class ASL_BiLSTM(nn.Module):
     def __init__(

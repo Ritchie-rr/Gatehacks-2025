@@ -1,6 +1,20 @@
 import torch
+import os
 import torch.nn as nn
 from backend import config
+
+
+MODEL_PATH = os.path.join(
+    os.path.dirname(__file__),
+    "..",
+    "src",
+    "best.pt"
+)
+
+
+
+print("MODEL_PATH resolved to:", MODEL_PATH)
+print("File exists:", os.path.exists(MODEL_PATH))
 
 class ASL_BiLSTM(nn.Module):
     def __init__(

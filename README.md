@@ -374,4 +374,4 @@ This project is licensed under the MIT License – see the LICENSE file for deta
 
 ---
 
-**Made with ❤️ for Gatehacks 2025**
+**Made for Gatehacks 2025**
